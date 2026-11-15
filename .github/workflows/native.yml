@@ -6,6 +6,7 @@ on:
     branches: [main, feature/unity-native-platform-builds]
     paths: &native_paths
       - 'fidget-native/**'
+      - 'unity/**'
       - 'fidget-core/**'
       - 'fidget-mesh/**'
       - 'workspace-hack/**'
@@ -92,5 +93,35 @@ jobs:
         with:
           name: fidget-native-${{ matrix.target }}
           path: target/native-artifacts/${{ matrix.target }}/
+          if-no-files-found: error
+          retention-days: 14
+
+  unity-package:
+    name: Assemble Unity packages
+    needs: native
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: fidget-native-*
+          path: target/ci-artifacts
+      - name: Assemble device package
+        run: |
+          python3 unity/package_unity.py --artifacts target/ci-artifacts \
+            --output target/unity-device/package --targets \
+            x86_64-pc-windows-msvc aarch64-apple-darwin x86_64-apple-darwin \
+            x86_64-unknown-linux-gnu aarch64-linux-android x86_64-linux-android aarch64-apple-ios
+          tar -czf target/fidget-unity-device.tgz -C target/unity-device package
+      - name: Assemble simulator package
+        run: |
+          python3 unity/package_unity.py --artifacts target/ci-artifacts \
+            --output target/unity-simulator/package --targets \
+            aarch64-apple-darwin x86_64-apple-darwin aarch64-apple-ios-sim
+          tar -czf target/fidget-unity-simulator.tgz -C target/unity-simulator package
+      - uses: actions/upload-artifact@v4
+        with:
+          name: fidget-unity-packages
+          path: target/fidget-unity-*.tgz
           if-no-files-found: error
           retention-days: 14
