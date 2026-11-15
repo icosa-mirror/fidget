@@ -35,7 +35,7 @@ var solid = builder.Subtract(builder.Sphere(radius),
 var output = GetComponent<FidgetMesh>();
 output.Initialize(builder.Compile(solid),
     new MeshSettings(new Bounds(Vector3.zero, Vector3.one * 2),
-        depth: 5, normals: MeshNormals.Smooth));
+        depth: 5, normals: MeshNormals.Surface));
 
 // In Update, using the cached parameter key:
 output.Parameters.Set(radius, animatedRadius);
@@ -101,8 +101,8 @@ freeing resources a job still uses. An overload accepts a per-request depth.
    There is no crease-angle threshold. This is recovered face classification,
    not provenance exported by the mesher: a triangle spanning a branch boundary
    cannot represent that transition exactly. It adds expression evaluation,
-   normal storage, and potentially more render vertices. This mode is being
-   validated against the examples; it is not a universal hard-edge guarantee.
+   normal storage, and potentially more render vertices. The rounded-box Boolean
+   example has been visually reviewed; this is not a universal hard-edge guarantee.
 
 Parameter values must be finite; applications must also keep expressions valid
 (e.g. avoid division by zero and negative square roots). Bounds, depth, graph

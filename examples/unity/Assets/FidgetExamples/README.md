@@ -11,10 +11,13 @@ ensure Quality settings do not override it with a different pipeline.
    mode. The script also exposes setters suitable for UI Slider events.
 3. Open Scenes/SharedShapeInstances.unity to see one compiled expression drive
    several objects with independent parameters and mesh streams.
+4. Open Scenes/ChangingSphere.unity for the minimal sphere stream and a
+   positions-only flat-shaded material.
 
 The lit examples request expression-derived surface normals, with hard transitions
-selected from Fidget's branch traces. This mode is under validation; see the package
-README for face-classification limitations. The included URP Flat Preview shader
+selected from Fidget's branch traces. See the package README for face-classification
+limitations. The included URP Flat Preview shader
 is an alternative that needs only positions and indices.
 
 The repository's examples/unity project already has this URP pipeline configured.
+Its Assets/FidgetExamples folder is the source for these packaged samples.

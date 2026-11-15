@@ -77,6 +77,9 @@ def main():
             parser.error(f"Missing library for {target}")
         sources.append((target, source))
     shutil.copytree(ROOT / "unity/com.icosa.fidget", args.output)
+    # The runnable Unity project is the single source for the UPM sample assets.
+    shutil.copytree(ROOT / "examples/unity/Assets/FidgetExamples", args.output / "Samples~/Examples")
+    shutil.copy2(ROOT / "examples/unity/Assets/FidgetExamples.meta", args.output / "Samples~/Examples.meta")
     shutil.copy2(ROOT / "LICENSE.txt", args.output / "LICENSE.md")
     for target, source in sources:
         platform = PLATFORMS[target]

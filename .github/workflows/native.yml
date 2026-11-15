@@ -7,6 +7,8 @@ on:
     paths: &native_paths
       - 'fidget-native/**'
       - 'unity/**'
+      - 'examples/unity/Assets/FidgetExamples/**'
+      - 'examples/unity/Assets/FidgetExamples.meta'
       - 'fidget-core/**'
       - 'fidget-mesh/**'
       - 'workspace-hack/**'
