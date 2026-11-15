@@ -24,6 +24,6 @@ simulator build, change the Git dependency revision to `upm-simulator` so Unity
 installs the simulator archive instead. Both ARM64 archives must not be linked
 together.
 
-The first `upm`/`upm-simulator` publication must exist before a fresh checkout can
-resolve these dependencies. Package publication is an explicit CI action, not a
-per-user setup step.
+The manifest pins a published UPM commit so the example installs a matching set
+of C# and native binaries. Maintainers publish package updates through CI; users
+only open the project and let UPM resolve the dependency.
