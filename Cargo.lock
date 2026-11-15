@@ -1650,6 +1650,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "fidget-native"
+version = "0.1.0"
+dependencies = [
+ "fidget-core",
+ "fidget-mesh",
+ "workspace-hack",
+]
+
+[[package]]
 name = "fidget-raster"
 version = "0.5.1"
 dependencies = [

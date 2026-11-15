@@ -8,6 +8,7 @@ members = [
     "fidget-gui",
     "fidget-jit",
     "fidget-mesh",
+    "fidget-native",
     "fidget-raster",
     "fidget-rhai",
     "fidget-shapes",
