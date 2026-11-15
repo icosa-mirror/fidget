@@ -132,6 +132,9 @@ namespace Icosa.Fidget
 
         /// <summary>Overrides depth for this request without rebuilding the shape or replacing the Mesh.</summary>
         public bool TrySchedule(ParameterValues parameters, int depth)
+            => TrySchedule(parameters, depth, true);
+
+        internal bool TrySchedule(ParameterValues parameters, int depth, bool captureBindings)
         {
             ThrowIfDisposed();
             if (_pending) return false;
@@ -139,6 +142,7 @@ namespace Icosa.Fidget
             var settings = Settings;
             settings.Depth = depth;
             if (parameters == null || parameters.Shape != _shape) throw new ArgumentException("Values must come from the stream's compiled shape.", nameof(parameters));
+            if (captureBindings) parameters.CaptureBindings();
             // A dedicated snapshot prevents writes on the main thread from racing the worker.
             _parameters.CopyFrom(parameters.Values);
             _output = Mesh.AllocateWritableMeshData(1);

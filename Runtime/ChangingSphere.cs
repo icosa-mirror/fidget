@@ -5,7 +5,7 @@ namespace Icosa.Fidget
     [RequireComponent(typeof(MeshFilter), typeof(MeshRenderer))]
     public sealed class ChangingSphere : MonoBehaviour
     {
-        [Range(1, 8)] public int Detail = 4;
+        [Range(1, 8)] public int Detail = 6;
         [Range(0.01f, 0.9f)] public float Radius = 0.6f;
         [Range(0, 0.3f)] public float Amplitude = 0.15f;
         [Min(0)] public float Speed = 1;

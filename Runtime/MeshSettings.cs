@@ -12,7 +12,7 @@ namespace Icosa.Fidget
         public Bounds Bounds;
         [Range(1, 8)] public int Depth;
         public MeshNormals Normals;
-        public MeshSettings(Bounds bounds, int depth = 5, MeshNormals normals = MeshNormals.None)
+        public MeshSettings(Bounds bounds, int depth = 6, MeshNormals normals = MeshNormals.None)
         { Bounds = bounds; Depth = depth; Normals = normals; }
         internal static void ValidateDepth(int depth)
         {

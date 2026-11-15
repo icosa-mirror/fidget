@@ -384,7 +384,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Icosa.Fidget.Samples.SharedShapeInstances
   Material: {fileID: 2100000, guid: 9f747902cb31e704ca67310092a8b534, type: 2}
   Count: 4
-  Detail: 4
+  Detail: 6
 --- !u!4 &517400662
 Transform:
   m_ObjectHideFlags: 0

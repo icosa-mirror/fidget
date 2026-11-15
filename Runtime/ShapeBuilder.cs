@@ -70,7 +70,7 @@ namespace Icosa.Fidget
     }
 
     /// <summary>Build once on the main thread, then compile and update parameter values without rebuilding.</summary>
-    public sealed class ShapeBuilder
+    public class ShapeBuilder
     {
         private readonly List<Native.Node> _nodes = new List<Native.Node>();
         private readonly List<float> _defaults = new List<float>();
@@ -91,13 +91,21 @@ namespace Icosa.Fidget
             return value.Index;
         }
         internal Expression Node(uint op, Expression a, Expression b = default) => Add(new Native.Node { Opcode = op, A = Import(a), B = op >= 11 ? Import(b) : 0 });
-        public Parameter Parameter(string name, float defaultValue)
+        /// <summary>Low-level unnamed parameter slot. Prefer ShapeBuilder&lt;T&gt; for typed model properties.</summary>
+        public Parameter Parameter(float defaultValue = 0)
         {
-            if (string.IsNullOrWhiteSpace(name) || _parameters.ContainsKey(name)) throw new ArgumentException("Parameter names must be nonempty and unique.", nameof(name));
             Finite(defaultValue, nameof(defaultValue));
             int index = _defaults.Count;
             var key = new Parameter(this, index, Add(new Native.Node { Opcode = 4, A = (uint)index }));
-            _defaults.Add(defaultValue); _parameters.Add(name, key); return key;
+            _defaults.Add(defaultValue);
+            return key;
+        }
+        public Parameter Parameter(string name, float defaultValue)
+        {
+            if (string.IsNullOrWhiteSpace(name) || _parameters.ContainsKey(name)) throw new ArgumentException("Parameter names must be nonempty and unique.", nameof(name));
+            var key = Parameter(defaultValue);
+            _parameters.Add(name, key);
+            return key;
         }
         public Expression Sphere(Expression radius) => (X.Square() + Y.Square() + Z.Square()).Sqrt() - radius;
         /// <summary>Box dimensions are half extents, in local units.</summary>
