@@ -1,6 +1,6 @@
 ABI: 4
 Target: aarch64-apple-ios
-Source commit: 129d12df407a925b2580e9e1639a691a25b94d47
+Source commit: 10924a28ddd4a0c599f797eb55b22aac78f943e6
 Working tree dirty: False
 rustc 1.95.0 (59807616e 2026-04-14)
 binary: rustc

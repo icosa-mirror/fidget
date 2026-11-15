@@ -11,16 +11,17 @@ ensure Quality settings do not override it with a different pipeline.
    tube-radius sliders. Their persistent events update the shape in Play mode.
    The controls use Unity UI and the Input System UI module; install those packages
    alongside URP when importing the samples into another project.
-3. Open Scenes/SharedShapeInstances.unity to see one compiled expression drive
-   several objects with independent parameters and mesh streams.
-4. Open Scenes/ChangingSphere.unity for the minimal sphere stream and a
-   positions-only flat-shaded material.
+3. Open Scenes/SharedShapeInstances.unity to see its nested `SharedSphere` components created
+   with `CreateSharedInstance`, sharing one definition with independent radii.
+4. Open Scenes/ChangingSphere.unity for a minimal `FidgetMesh<ChangingSphere>`
+   component that animates its radius, using a positions-only flat-shaded material.
 
 AnimatedBoolean and InteractiveParameters derive from `FidgetMesh<T>`. Each
 component defines its expression in `Define` and exposes ordinary C# properties
 such as `CutterOffset` and `MajorRadius`. No initialization or compilation calls
-are required in these examples. SharedShapeInstances demonstrates the advanced
-API for binding four model instances to one compiled definition.
+are required in these examples. SharedShapeInstances creates shared components,
+positions them, and animates their `Radius` properties. Sharing and stream
+lifetimes are handled by the runtime.
 
 The lit examples request expression-derived surface normals, with hard transitions
 selected from Fidget's branch traces. See the package README for face-classification

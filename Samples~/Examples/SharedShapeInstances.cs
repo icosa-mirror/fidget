@@ -1,60 +1,54 @@
+using Icosa.Fidget;
 using UnityEngine;
 
-namespace Icosa.Fidget.Samples
+namespace FidgetExamples
 {
-    /// <summary>One compiled expression, independent stream and parameter snapshot per object.</summary>
-    public sealed class SharedShapeInstances : MonoBehaviour
+    /// <summary>One shared definition, independently animated components.</summary>
+    public class SharedShapeInstances : MonoBehaviour
     {
+        public class SharedSphere : FidgetMesh<SharedSphere>
+        {
+            public float Radius { get; set; } = 0.55f;
+
+            protected override Expression Define(ShapeBuilder<SharedSphere> shape) =>
+                shape.Subtract(shape.Sphere(shape.Parameter(sphere => sphere.Radius)),
+                               shape.Box(new Vector3(0.22f, 1, 0.22f)));
+        }
+
         public Material Material;
         [Range(1, 16)] public int Count = 4;
         [Range(1, 6)] public int Detail = 6;
-        private CompiledShape<SphereMesh> _shape;
-        private SphereMesh[] _meshes;
-        public sealed class SphereMesh
-        {
-            public float Radius { get; set; } = 0.55f;
-        }
-        private MeshStream[] _streams;
-        private ParameterValues[] _values;
-        private GameObject[] _objects;
+        private SharedSphere[] _meshes;
+
         private void OnEnable()
         {
+            _meshes = new SharedSphere[Mathf.Clamp(Count, 1, 16)];
             try
             {
-                var builder = new ShapeBuilder<SphereMesh>();
-                var radius = builder.Parameter(mesh => mesh.Radius);
-                _shape = builder.Compile(builder.Subtract(builder.Sphere(radius), builder.Box(new Vector3(0.22f, 1, 0.22f))));
-                int count = Mathf.Clamp(Count, 1, 16);
-                _meshes = new SphereMesh[count];
-                _streams = new MeshStream[count]; _values = new ParameterValues[count]; _objects = new GameObject[count];
-                for (int i = 0; i < count; ++i)
+                for (int i = 0; i < _meshes.Length; ++i)
                 {
-                    _streams[i] = new MeshStream(_shape.Shape, new MeshSettings(new Bounds(Vector3.zero, Vector3.one * 2), Detail, MeshNormals.Surface));
-                    _meshes[i] = new SphereMesh();
-                    _values[i] = _shape.CreateParameters(_meshes[i]);
-                    var go = _objects[i] = new GameObject($"Shared shape {i + 1}", typeof(MeshFilter), typeof(MeshRenderer));
-                    go.transform.SetParent(transform, false);
-                    go.transform.localPosition = new Vector3((i - (count - 1) * 0.5f) * 1.6f, 0, 0);
-                    go.GetComponent<MeshFilter>().sharedMesh = _streams[i].Mesh;
-                    go.GetComponent<MeshRenderer>().sharedMaterial = Material;
+                    var mesh = _meshes[i] = i == 0
+                        ? new GameObject("Shared shape").AddComponent<SharedSphere>()
+                        : _meshes[0].CreateSharedInstance(transform);
+                    mesh.transform.SetParent(transform, false);
+                    mesh.transform.localPosition = new Vector3((i - (_meshes.Length - 1) * 0.5f) * 1.6f, 0, 0);
+                    mesh.Detail = Detail;
+                    mesh.GetComponent<MeshRenderer>().sharedMaterial = Material;
                 }
             }
             catch { OnDisable(); throw; }
         }
+
         private void Update()
         {
-            for (int i = 0; i < _streams.Length; ++i)
-            {
-                _streams[i].TryApply();
+            for (int i = 0; i < _meshes.Length; ++i)
                 _meshes[i].Radius = 0.55f + Mathf.Sin(Time.time + i) * 0.15f;
-                _streams[i].TrySchedule(_values[i]);
-            }
         }
+
         private void OnDisable()
         {
-            if (_streams != null) foreach (var stream in _streams) stream?.Dispose();
-            if (_objects != null) foreach (var go in _objects) if (go != null) Destroy(go);
-            _shape?.Dispose(); _shape = null; _streams = null; _objects = null; _values = null; _meshes = null;
+            if (_meshes != null) foreach (var mesh in _meshes) if (mesh != null) Destroy(mesh.gameObject);
+            _meshes = null;
         }
     }
 }

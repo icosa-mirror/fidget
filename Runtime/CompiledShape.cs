@@ -9,15 +9,32 @@ namespace Icosa.Fidget
     {
         private sealed class ShapeHandle : SafeHandleZeroOrMinusOneIsInvalid
         {
+            private readonly ShapeHandle _owner;
             internal ShapeHandle(IntPtr value) : base(true) { SetHandle(value); }
-            protected override bool ReleaseHandle() { Native.fidget_shape_free(handle); return true; }
+            internal ShapeHandle(ShapeHandle owner) : base(true)
+            {
+                _owner = owner;
+                bool retained = false;
+                owner.DangerousAddRef(ref retained);
+                SetHandle(owner.DangerousGetHandle());
+            }
+            protected override bool ReleaseHandle()
+            {
+                if (_owner == null) Native.fidget_shape_free(handle);
+                else _owner.DangerousRelease();
+                return true;
+            }
         }
         private readonly ShapeHandle _handle;
         internal readonly ShapeBuilder Builder;
         internal readonly float[] Defaults;
         private readonly Dictionary<string, Parameter> _parameters;
         internal CompiledShape(IntPtr handle, ShapeBuilder builder, float[] defaults, Dictionary<string, Parameter> parameters)
-        { _handle = new ShapeHandle(handle); Builder = builder; Defaults = defaults; _parameters = parameters; }
+            : this(new ShapeHandle(handle), builder, defaults, parameters) { }
+        private CompiledShape(ShapeHandle handle, ShapeBuilder builder, float[] defaults, Dictionary<string, Parameter> parameters)
+        { _handle = handle; Builder = builder; Defaults = defaults; _parameters = parameters; }
+        // Each component owns a separately disposable lease on the same native shape.
+        internal CompiledShape Retain() => new CompiledShape(new ShapeHandle(_handle), Builder, Defaults, _parameters);
         internal IntPtr CreateMesher()
         {
             bool retained = false;

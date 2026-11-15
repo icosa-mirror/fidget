@@ -1,9 +1,10 @@
+using Icosa.Fidget;
 using UnityEngine;
 
-namespace Icosa.Fidget.Samples
+namespace FidgetExamples
 {
     /// <summary>Define once; animate the cutter through ordinary C# properties.</summary>
-    public sealed class AnimatedBoolean : FidgetMesh<AnimatedBoolean>
+    public class AnimatedBoolean : FidgetMesh<AnimatedBoolean>
     {
         [field: SerializeField, Range(0.1f, 0.8f)] public float CutterRadius { get; set; } = 0.32f;
         public float CutterOffset { get; set; }
