@@ -35,7 +35,7 @@ var solid = builder.Subtract(builder.Sphere(radius),
 var output = GetComponent<FidgetMesh>();
 output.Initialize(builder.Compile(solid),
     new MeshSettings(new Bounds(Vector3.zero, Vector3.one * 2),
-        depth: 5, normals: MeshNormals.Surface));
+        depth: 6, normals: MeshNormals.Surface));
 
 // In Update, using the cached parameter key:
 output.Parameters.Set(radius, animatedRadius);

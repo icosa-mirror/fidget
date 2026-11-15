@@ -17,6 +17,7 @@ project includes the usual Unity packages and Unity Pipeline for Editor automati
 6. **ChangingSphere** is the minimal sphere-stream example, using a positions-only
    flat-shaded material.
 
+All scenes default to detail 6; detail remains adjustable in the Inspector.
 The three general API examples use ordinary URP Lit and `MeshNormals.Surface`.
 Fidget's expression branches select surface gradients, keeping curved surfaces
 smooth and splitting render vertices at differing normals. No crease-angle

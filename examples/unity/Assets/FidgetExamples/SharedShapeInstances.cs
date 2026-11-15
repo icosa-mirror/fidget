@@ -7,7 +7,7 @@ namespace Icosa.Fidget.Samples
     {
         public Material Material;
         [Range(1, 16)] public int Count = 4;
-        [Range(1, 6)] public int Detail = 4;
+        [Range(1, 6)] public int Detail = 6;
         private CompiledShape _shape;
         private Parameter _radius;
         private MeshStream[] _streams;

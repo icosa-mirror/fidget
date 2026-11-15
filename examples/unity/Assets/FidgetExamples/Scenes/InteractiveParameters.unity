@@ -400,7 +400,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Icosa.Fidget::Icosa.Fidget.FidgetMesh
   Continuous: 1
-  Detail: 5
+  Detail: 6
 --- !u!23 &517400663
 MeshRenderer:
   m_ObjectHideFlags: 0

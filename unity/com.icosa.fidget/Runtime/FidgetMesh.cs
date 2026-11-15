@@ -10,7 +10,7 @@ namespace Icosa.Fidget
     {
         [Tooltip("When disabled, call RequestUpdate after changing parameters.")]
         public bool Continuous = true;
-        [Range(1, 8)] public int Detail = 5;
+        [Range(1, 8)] public int Detail = 6;
         public ParameterValues Parameters { get; private set; }
         public MeshStream Stream { get; private set; }
         private CompiledShape _shape;
