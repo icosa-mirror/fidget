@@ -10,8 +10,8 @@ project includes the usual Unity packages and Unity Pipeline for Editor automati
 2. Open a scene in **Assets/FidgetExamples/Scenes** and press Play.
 3. Start with **AnimatedBoolean**: a cylinder cuts a rounded box. Adjust its
    cutter radius, travel, speed, and detail on its single shape component.
-4. **InteractiveParameters** updates a torus only when its radii change. Its
-   public setters can also be connected to UI sliders.
+4. **InteractiveParameters** has on-screen sliders for the torus's major and tube
+   radii. They accept pointer/touch input and regenerate the mesh as values change.
 5. **SharedShapeInstances** reuses one compiled expression for four independent,
    animated mesh streams.
 6. **ChangingSphere** is the minimal sphere-stream example, using a positions-only
