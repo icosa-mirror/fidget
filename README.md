@@ -28,39 +28,62 @@ Add `FidgetMesh` to a GameObject and assign a material to its MeshRenderer. Buil
 shape in your script's `Start`, then update its parameters in `Update`:
 
 ```csharp
-var builder = new ShapeBuilder();
-var radius = builder.Parameter("radius", 0.6f);
-var solid = builder.Subtract(builder.Sphere(radius),
-    builder.Box(new Vector3(0.2f, 1f, 0.2f)));
-var output = GetComponent<FidgetMesh>();
-output.Initialize(builder.Compile(solid),
-    new MeshSettings(new Bounds(Vector3.zero, Vector3.one * 2),
-        depth: 5, normals: MeshNormals.Surface));
+public sealed class Cutter : FidgetMesh<Cutter>
+{
+    public float Offset { get; set; }
+    public float Radius { get; set; } = 0.32f;
 
-// In Update, using the cached parameter key:
-output.Parameters.Set(radius, animatedRadius);
+    protected override Expression Define(ShapeBuilder<Cutter> s)
+    {
+        var body = s.Intersect(s.Sphere(0.85f), s.Box(Vector3.one * 0.65f));
+        var hole = s.Translate(s.Cylinder(s.Parameter(c => c.Radius), 1.2f),
+                               s.Parameter(c => c.Offset), 0, 0);
+        return s.Subtract(body, hole);
+    }
+}
 ```
 
-`Initialize` transfers ownership of the compiled shape to the component. The
-component applies completed geometry and schedules the latest parameters in
-`LateUpdate`. Disabling it completes outstanding work and releases mesh buffers;
-reenabling creates a fresh stream. Destruction also releases the compiled shape.
-Use `Continuous = false` and `RequestUpdate()` for event-driven geometry.
+Attach `Cutter` to a GameObject. Other scripts update it directly:
+
+```csharp
+cutter.Offset = Mathf.Sin(Time.time) * 0.4f;
+cutter.Radius = 0.3f;
+```
+
+The component calls `Define` once on first enable, prepares the expression, and
+owns the native resources and Unity mesh. `Detail` defaults to 6; `Bounds` and
+`Normals` are Inspector settings. The default normal mode is `Surface`. Add
+`[field: SerializeField]` to a property to expose its backing field in the Inspector,
+as shown in the example components.
+
+New components default to updating when property values change. Enable `Continuous`
+to generate every available frame. Updates happen in `LateUpdate`; values are
+snapshotted before the worker runs. Disabling completes outstanding work and
+releases mesh buffers; reenabling reuses the prepared expression. Destruction
+releases it. Call `Rebuild()` after changing expression structure, bounds, or normal
+mode; ordinary property changes require no rebuild.
+
+Property accessors are ordinary C# delegates, compatible with IL2CPP: no reflection,
+runtime code generation, or string lookup. Keep them inexpensive and free of side
+effects. Binding storage is reused across frames. If you override `OnEnable`,
+`OnDisable`, `LateUpdate`, `OnDestroy`, or `Reset`, call the base implementation.
 
 ## Direct mesh-stream workflow
 
-Use `MeshStream` when you control scheduling or share one compiled shape across
-several objects. Each stream owns an independent mesher and parameter snapshot:
+Compile one typed definition and bind independent model instances to its streams:
 
 ```csharp
-// Initialize on the main thread; retain these objects in fields.
-var shape = builder.Compile(solid);
-var parameters = shape.CreateParameters();
-var stream = new MeshStream(shape, settings);
+// A plain C# model for this advanced sharing workflow:
+// public sealed class SphereValues { public float Radius { get; set; } = 0.6f; }
+var builder = new ShapeBuilder<SphereValues>();
+var shape = builder.Compile(builder.Sphere(builder.Parameter(s => s.Radius)));
+var mesh = new SphereValues();
+var parameters = shape.CreateParameters(mesh);
+var stream = new MeshStream(shape.Shape, settings);
 meshFilter.sharedMesh = stream.Mesh;
 
 // Each frame:
-parameters.Set(radius, animatedRadius);
+mesh.Radius = radius;
 stream.TryApply();
 stream.TrySchedule(parameters);
 
@@ -68,6 +91,11 @@ stream.TrySchedule(parameters);
 stream.Dispose();
 shape.Dispose();
 ```
+
+Each call to `CreateParameters(model)` binds that model independently, so another
+stream can use a different `SphereValues` without recompiling the expression. The
+low-level non-generic builder and explicit parameter handles remain available for
+dynamically constructed graphs; named parameters are optional there.
 
 Keep the compiled shape until all desired streams have been created. Existing
 streams retain the native expression and remain usable after `shape.Dispose()`.
@@ -87,7 +115,7 @@ freeing resources a job still uses. An overload accepts a per-request depth.
 2. Arithmetic, `Min`, `Max`, `Abs`, `Sqrt`, `Square`, `Sin`, and `Cos` support custom
    expressions using the builder's `X`, `Y`, and `Z` coordinates.
 3. `Translate`, `RotateY` (radians), affine `Transform`, and general `Remap` change
-   coordinates. Expressions and parameter keys must come from the same builder.
+   coordinates. Expressions and low-level parameter keys must come from the same builder.
 4. `MeshSettings.Bounds` is an explicit local-space sampling domain. Keep the whole
    surface inside it. Geometry outside the domain is not generated. Depth ranges
    from 1 to 8; thin details below the sampling resolution can be missed.
@@ -111,8 +139,8 @@ Invalid arguments and native failures produce descriptive managed exceptions.
 
 ## Examples
 
-1. **Animated Boolean**: a cylinder cuts a rounded box; animate its offset and
-   radius without rebuilding the expression. Uses `FidgetMesh`.
+1. **Animated Boolean**: a cylinder cuts a rounded box. Its component derives from
+   `FidgetMesh<AnimatedBoolean>` and defines the expression in `Define`.
 2. **Interactive Parameters**: change a torus through Inspector controls or bind
    UI sliders to its setters. Regenerates only when parameters change.
 3. **Shared Shape Instances**: one compiled shape, independent parameters and

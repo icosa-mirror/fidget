@@ -364,8 +364,7 @@ GameObject:
   - component: {fileID: 517400665}
   - component: {fileID: 517400664}
   - component: {fileID: 517400663}
-  - component: {fileID: 517400662}
-  - component: {fileID: 517400661}
+  - component: {fileID: 517400666}
   m_Layer: 0
   m_Name: InteractiveParameters
   m_TagString: Untagged
@@ -373,34 +372,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &517400661
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 517400660}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 34458d74a26c553c992711b72ab5bd1f, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::Icosa.Fidget.Samples.InteractiveParameters
-  MajorRadius: 0.5
-  TubeRadius: 0.15
---- !u!114 &517400662
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 517400660}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 622a00e28dfa5b2ba060c3252d818620, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Icosa.Fidget::Icosa.Fidget.FidgetMesh
-  Continuous: 1
-  Detail: 5
 --- !u!23 &517400663
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -473,6 +444,26 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &517400666
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 517400660}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 34458d74a26c553c992711b72ab5bd1f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Icosa.Fidget.Samples.InteractiveParameters
+  Continuous: 0
+  Detail: 6
+  Bounds:
+    m_Center: {x: 0, y: 0, z: 0}
+    m_Extent: {x: 1, y: 1, z: 1}
+  Normals: 2
+  <MajorRadius>k__BackingField: 0.5
+  <TubeRadius>k__BackingField: 0.15
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0

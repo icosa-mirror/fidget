@@ -330,7 +330,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1ff77c3818f65fce8fedb0f60fc96bc2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Icosa.Fidget::Icosa.Fidget.ChangingSphere
-  Detail: 4
+  Detail: 6
   Radius: 0.6
   Amplitude: 0.15
   Speed: 1

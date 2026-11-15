@@ -41,6 +41,8 @@ namespace Icosa.Fidget
         internal readonly CompiledShape Shape;
         internal readonly float[] Values;
         internal ParameterValues(CompiledShape shape) { Shape = shape; Values = (float[])shape.Defaults.Clone(); }
+        internal Func<bool> ReadBindings;
+        internal bool CaptureBindings() => ReadBindings != null && ReadBindings();
         public void Set(Parameter parameter, float value)
         {
             if (parameter.Owner != Shape.Builder || parameter.Index >= Values.Length) throw new ArgumentException("Parameter does not belong to this compiled shape.", nameof(parameter));

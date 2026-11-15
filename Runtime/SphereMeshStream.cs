@@ -21,7 +21,7 @@ namespace Icosa.Fidget
             _radius = builder.Parameter("radius", 0.6f);
             _shape = builder.Compile(builder.Sphere(_radius));
             _values = _shape.CreateParameters();
-            try { _stream = new MeshStream(_shape, new MeshSettings(new Bounds(Vector3.zero, Vector3.one * 2), 4)); }
+            try { _stream = new MeshStream(_shape, new MeshSettings(new Bounds(Vector3.zero, Vector3.one * 2))); }
             catch { _shape.Dispose(); throw; }
             Mesh = _stream.Mesh;
         }
