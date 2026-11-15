@@ -23,7 +23,8 @@ namespace Icosa.Fidget
         // No BurstCompile: the native Rust implementation performs the computation.
         private unsafe struct GenerateJob : IJob
         {
-            public IntPtr Mesher;
+            // Exclusively owned by this stream; Dispose completes the job before freeing it.
+            [NativeDisableUnsafePtrRestriction] public IntPtr Mesher;
             public MeshSettings Settings;
             [ReadOnly] public NativeArray<float> Parameters;
             public Mesh.MeshDataArray Output;
@@ -39,6 +40,11 @@ namespace Icosa.Fidget
                     var bounds = new Native.Bounds { Min = Settings.Bounds.min, Max = Settings.Bounds.max };
                     result.Status = Native.fidget_mesher_generate(Mesher, Parameters.GetUnsafeReadOnlyPtr(), (uint)Parameters.Length, in bounds, (uint)Settings.Depth, out handle);
                     if (result.Status != 0) return;
+                    if (Settings.Normals == MeshNormals.Surface)
+                    {
+                        result.Status = Native.fidget_mesh_prepare_surface_normals(Mesher, handle);
+                        if (result.Status != 0) return;
+                    }
                     result.Status = Native.fidget_mesh_get_counts(handle, out result.Counts);
                     if (result.Status != 0) return;
                     if (result.Counts.Vertices > int.MaxValue || result.Counts.Indices > int.MaxValue)
@@ -62,7 +68,7 @@ namespace Icosa.Fidget
                         result.Status = copyStatus;
                         return;
                     }
-                    if (Settings.Normals == MeshNormals.Smooth)
+                    if (Settings.Normals != MeshNormals.None)
                     {
                         var normals = data.GetVertexData<Vector3>(1);
                         int normalStatus = Native.fidget_mesh_write_normals(handle, normals.GetUnsafePtr(), result.Counts.Vertices);
@@ -111,7 +117,7 @@ namespace Icosa.Fidget
             {
                 _mesher = shape.CreateMesher();
                 _parameters = new NativeArray<float>(shape.Defaults.Length, Allocator.Persistent);
-                _layout = new NativeArray<VertexAttributeDescriptor>(settings.Normals == MeshNormals.Smooth ? 2 : 1, Allocator.Persistent);
+                _layout = new NativeArray<VertexAttributeDescriptor>(settings.Normals != MeshNormals.None ? 2 : 1, Allocator.Persistent);
                 _layout[0] = new VertexAttributeDescriptor(VertexAttribute.Position, VertexAttributeFormat.Float32, 3, 0);
                 if (_layout.Length == 2) _layout[1] = new VertexAttributeDescriptor(VertexAttribute.Normal, VertexAttributeFormat.Float32, 3, 1);
                 _results = new NativeArray<Result>(1, Allocator.Persistent);

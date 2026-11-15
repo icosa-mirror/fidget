@@ -42,8 +42,8 @@ def main():
         source_commits = set()
         for library in libraries:
             info = (library.parent / 'BUILD-INFO.txt').read_text()
-            if 'ABI: 3\n' not in info or not Path(f'{library}.meta').is_file():
-                raise ValueError(f'{library}: missing ABI-v3 provenance or importer metadata')
+            if 'ABI: 4\n' not in info or not Path(f'{library}.meta').is_file():
+                raise ValueError(f'{library}: missing ABI-v4 provenance or importer metadata')
             source_commits.add(next(line for line in info.splitlines() if line.startswith('Source commit: ')))
         if len(source_commits) != 1:
             raise ValueError('Package contains libraries from different source commits')

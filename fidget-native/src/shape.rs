@@ -33,6 +33,7 @@ pub struct FidgetShape(Arc<Compiled>);
 pub struct FidgetMesher {
     compiled: Arc<Compiled>,
     values: ShapeVars<f32>,
+    surface: crate::surface::SurfaceWorkspace,
 }
 
 fn compile(nodes: &[FidgetNode], parameter_count: u32) -> Option<FidgetShape> {
@@ -139,6 +140,7 @@ pub unsafe extern "C" fn fidget_mesher_create(
         Box::new(FidgetMesher {
             compiled: shape.0.clone(),
             values,
+            surface: Default::default(),
         })
     })) {
         Ok(mesher) => {
@@ -213,7 +215,10 @@ pub unsafe extern "C" fn fidget_mesher_generate(
         let mesh = Octree::build(&bound, &settings)?.walk_dual();
         u32::try_from(mesh.vertices.len()).ok()?;
         u32::try_from(mesh.triangles.len().checked_mul(3)?).ok()?;
-        Some(Box::new(FidgetMesh { mesh }))
+        Some(Box::new(FidgetMesh {
+            mesh,
+            normals: None,
+        }))
     })) {
         Ok(Some(mesh)) => {
             unsafe { out.write(Box::into_raw(mesh)) };
@@ -233,6 +238,39 @@ pub unsafe extern "C" fn fidget_mesher_free(mesher: *mut FidgetMesher) {
     }
 }
 
+/// Prepares expression-derived normals using each face's interior branch trace.
+/// Can duplicate render vertices, but does not change positions or triangles.
+/// Call before querying mesh counts. Returns MESH_FAILED for undefined gradients.
+/// # Safety
+/// Both handles must be live and exclusively accessed. `mesh` must come from the
+/// most recent generation on `mesher`, whose parameters must not have changed.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn fidget_mesh_prepare_surface_normals(
+    mesher: *mut FidgetMesher,
+    mesh: *mut FidgetMesh,
+) -> i32 {
+    let Some(mesher) = (unsafe { mesher.as_mut() }) else {
+        return INVALID_ARGUMENT;
+    };
+    let Some(mesh) = (unsafe { mesh.as_mut() }) else {
+        return INVALID_ARGUMENT;
+    };
+    match catch_unwind(AssertUnwindSafe(|| {
+        let input = std::mem::take(&mut mesh.mesh);
+        mesher
+            .surface
+            .prepare(&mesher.compiled.shape, &mesher.values, input)
+    })) {
+        Ok(Some((prepared, normals))) => {
+            mesh.mesh = prepared;
+            mesh.normals = Some(normals);
+            OK
+        }
+        Ok(None) => MESH_FAILED,
+        Err(_) => PANIC,
+    }
+}
+
 /// Writes area-weighted smooth vertex normals to an optional separate stream.
 /// # Safety
 /// `mesh` must be live; `normals` must address `capacity * 3` writable floats.
@@ -246,18 +284,24 @@ pub unsafe extern "C" fn fidget_mesh_write_normals(
     let Some(mesh) = (unsafe { mesh.as_ref() }) else {
         return INVALID_ARGUMENT;
     };
-    let mesh = &mesh.mesh;
-    if (capacity as usize) < mesh.vertices.len()
-        || (!mesh.vertices.is_empty() && normals.is_null())
+    if (capacity as usize) < mesh.mesh.vertices.len()
+        || (!mesh.mesh.vertices.is_empty() && normals.is_null())
     {
         return INVALID_ARGUMENT;
     }
-    if mesh.vertices.is_empty() {
+    if mesh.mesh.vertices.is_empty() {
         return OK;
     }
     let out = unsafe {
-        std::slice::from_raw_parts_mut(normals, mesh.vertices.len() * 3)
+        std::slice::from_raw_parts_mut(normals, mesh.mesh.vertices.len() * 3)
     };
+    if let Some(prepared) = &mesh.normals {
+        for (out, normal) in out.chunks_exact_mut(3).zip(prepared) {
+            out.copy_from_slice(normal.as_slice());
+        }
+        return OK;
+    }
+    let mesh = &mesh.mesh;
     out.fill(0.0);
     for tri in &mesh.triangles {
         let n = (mesh.vertices[tri[1]] - mesh.vertices[tri[0]])

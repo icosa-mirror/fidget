@@ -34,6 +34,7 @@ static int parameterized_shape(void) {
         FidgetMeshCounts counts;
         FidgetBounds bounds;
         CHECK(fidget_mesher_generate(i == 1 ? b : a, &radius, 1, &domain, 5, &mesh) == FIDGET_OK);
+        if (i == 2) CHECK(fidget_mesh_prepare_surface_normals(a, mesh) == FIDGET_OK);
         CHECK(fidget_mesh_get_counts(mesh, &counts) == FIDGET_OK);
         CHECK(counts.vertex_count > 0 && counts.index_count > 0);
         float *vertices = malloc(counts.vertex_count * 3 * sizeof(float));
@@ -69,7 +70,7 @@ int main(void) {
     FidgetMesh *mesh = NULL;
     FidgetMeshCounts counts = {0};
     FidgetBounds bounds = {0};
-    CHECK(fidget_native_abi_version() == 3);
+    CHECK(fidget_native_abi_version() == 4);
     CHECK(fidget_mesh_sphere(0.6f, 4, NULL) == FIDGET_INVALID_ARGUMENT);
     CHECK(fidget_mesh_sphere(NAN, 4, &mesh) == FIDGET_INVALID_ARGUMENT);
     CHECK(mesh == NULL);

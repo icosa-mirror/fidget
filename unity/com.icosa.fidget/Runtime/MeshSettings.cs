@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace Icosa.Fidget
 {
-    public enum MeshNormals { None, Smooth }
+    public enum MeshNormals { None, Smooth, Surface }
 
     /// <summary>Local-space domain, octree depth, and optional vertex normals.</summary>
     [Serializable]
@@ -21,7 +21,7 @@ namespace Icosa.Fidget
         internal void Validate()
         {
             ValidateDepth(Depth);
-            if (Normals != MeshNormals.None && Normals != MeshNormals.Smooth) throw new ArgumentOutOfRangeException(nameof(Normals));
+            if (Normals != MeshNormals.None && Normals != MeshNormals.Smooth && Normals != MeshNormals.Surface) throw new ArgumentOutOfRangeException(nameof(Normals));
             for (int i = 0; i < 3; ++i)
             {
                 ShapeBuilder.Finite(Bounds.min[i], nameof(Bounds));

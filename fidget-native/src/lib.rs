@@ -7,6 +7,7 @@ use fidget_mesh::{Octree, Settings};
 use std::{panic::catch_unwind, ptr};
 
 mod shape;
+mod surface;
 
 const OK: i32 = 0;
 const INVALID_ARGUMENT: i32 = 1;
@@ -16,6 +17,7 @@ const PANIC: i32 = 3;
 /// Opaque allocation owned by this library. Release with `fidget_mesh_free`.
 pub struct FidgetMesh {
     mesh: fidget_mesh::Mesh,
+    normals: Option<Vec<nalgebra::Vector3<f32>>>,
 }
 
 /// Fixed-width output sizes, without allocating packed staging buffers.
@@ -37,7 +39,7 @@ pub struct FidgetBounds {
 /// Version of the C ABI defined by `include/fidget_native.h`.
 #[unsafe(no_mangle)]
 pub extern "C" fn fidget_native_abi_version() -> u32 {
-    3
+    4
 }
 
 /// Meshes a sphere at the origin inside the fixed [-1, 1]^3 domain.
@@ -93,7 +95,10 @@ fn mesh_sphere(radius: f32, depth: u8) -> Option<FidgetMesh> {
     // The C ABI and Unity index buffers use fixed-width counts and indices.
     u32::try_from(mesh.vertices.len()).ok()?;
     u32::try_from(mesh.triangles.len().checked_mul(3)?).ok()?;
-    Some(FidgetMesh { mesh })
+    Some(FidgetMesh {
+        mesh,
+        normals: None,
+    })
 }
 
 /// Reads output sizes without converting or copying mesh data.

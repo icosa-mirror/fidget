@@ -84,6 +84,7 @@ jobs:
         run: |
           cargo fmt -p fidget-native -- --check
           cargo clippy --locked -p fidget-native --no-deps --target-dir target/native-build -- -D warnings
+          cargo test --locked -p fidget-native --lib --target-dir target/native-build
       - name: Build, verify and package
         env:
           NATIVE_TARGET: ${{ matrix.target }}

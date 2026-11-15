@@ -95,6 +95,14 @@ freeing resources a job still uses. An overload accepts a per-request depth.
    additionally writes area-weighted smooth normals for ordinary lit materials.
    This costs a worker-side triangle pass; it does not split hard edges or add UVs.
    Use solid-color URP Lit or triplanar materials when UVs are unnecessary.
+6. `MeshNormals.Surface` evaluates Fidget's expression gradients using the branch
+   trace selected at each triangle's centroid. Different corner normals get
+   separate render vertices; geometric positions and triangles are unchanged.
+   There is no crease-angle threshold. This is recovered face classification,
+   not provenance exported by the mesher: a triangle spanning a branch boundary
+   cannot represent that transition exactly. It adds expression evaluation,
+   normal storage, and potentially more render vertices. This mode is being
+   validated against the examples; it is not a universal hard-edge guarantee.
 
 Parameter values must be finite; applications must also keep expressions valid
 (e.g. avoid division by zero and negative square roots). Bounds, depth, graph

@@ -12,7 +12,7 @@ typedef struct FidgetMesh FidgetMesh;
 typedef struct FidgetShape FidgetShape;
 typedef struct FidgetMesher FidgetMesher;
 
-/* ABI v3 adds reusable compiled expressions and parameterized meshers. */
+/* ABI v4 adds expression-derived surface normal preparation. */
 typedef struct FidgetNode {
     uint32_t opcode, a, b, c, d;
     float value;
@@ -70,6 +70,16 @@ void fidget_mesher_free(FidgetMesher *mesher);
  * Output contains three floats per vertex. No additional allocation occurs.
  */
 int32_t fidget_mesh_write_normals(const FidgetMesh *mesh, float *normals, uint32_t capacity);
+
+/* Optional expression-derived normals. Uses the trace selected at each face's
+ * centroid, then evaluates that branch's gradient at its corners. Vertices with
+ * different normals are split, without changing geometry. No crease threshold.
+ * This is recovered face classification, not mesh-exported surface provenance.
+ * Call before querying counts; then write_normals copies the prepared normals.
+ * The mesh must come from this mesher's most recent generate call. On failure,
+ * free the mesh; it has been consumed. No concurrent use of either handle.
+ */
+int32_t fidget_mesh_prepare_surface_normals(FidgetMesher *mesher, FidgetMesh *mesh);
 
 /* Synchronous single-threaded probe. Fixed domain [-1, 1]^3.
  * Requires finite 0 < radius < 1 and 1 <= depth <= 8.

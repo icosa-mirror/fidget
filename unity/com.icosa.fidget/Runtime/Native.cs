@@ -6,7 +6,7 @@ namespace Icosa.Fidget
 {
     internal static unsafe class Native
     {
-        internal const uint AbiVersion = 3;
+        internal const uint AbiVersion = 4;
 
         [StructLayout(LayoutKind.Sequential)]
         internal struct Node
@@ -71,5 +71,7 @@ namespace Icosa.Fidget
         internal static extern void fidget_mesher_free(IntPtr mesher);
         [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
         internal static extern int fidget_mesh_write_normals(IntPtr mesh, void* normals, uint capacity);
+        [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
+        internal static extern int fidget_mesh_prepare_surface_normals(IntPtr mesher, IntPtr mesh);
     }
 }
