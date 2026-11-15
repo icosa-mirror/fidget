@@ -6,9 +6,9 @@ namespace Icosa.Fidget
     /// <summary>Owns a compiled shape and streams it into a MeshRenderer. Initialize once from your script.</summary>
     [RequireComponent(typeof(MeshFilter), typeof(MeshRenderer))]
     [DisallowMultipleComponent]
-    public sealed class FidgetMesh : MonoBehaviour
+    public class FidgetMesh : MonoBehaviour
     {
-        [Tooltip("When disabled, call RequestUpdate after changing parameters.")]
+        [Tooltip("When disabled, typed property changes trigger updates automatically. For explicit parameter values, call RequestUpdate.")]
         public bool Continuous = true;
         [Range(1, 8)] public int Detail = 6;
         public ParameterValues Parameters { get; private set; }
@@ -59,15 +59,15 @@ namespace Icosa.Fidget
             Stream.Dispose();
             Stream = null;
         }
-        private void OnEnable() => StartStream();
-        private void LateUpdate()
+        protected virtual void OnEnable() => StartStream();
+        protected virtual void LateUpdate()
         {
             if (Stream == null) return;
             if (Parameters.CaptureBindings()) _requested = true;
             Stream.TryApply();
             if ((Continuous || _requested) && Stream.TrySchedule(Parameters, Detail, false)) _requested = false;
         }
-        private void OnDisable() => StopStream();
-        private void OnDestroy() { StopStream(); _shape?.Dispose(); _shape = null; }
+        protected virtual void OnDisable() => StopStream();
+        protected virtual void OnDestroy() { StopStream(); _shape?.Dispose(); _shape = null; }
     }
 }

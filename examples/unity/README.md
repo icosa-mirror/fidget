@@ -9,7 +9,7 @@ project includes the usual Unity packages and Unity Pipeline for Editor automati
    and iOS. No Rust build or separate native-library installation is required.
 2. Open a scene in **Assets/FidgetExamples/Scenes** and press Play.
 3. Start with **AnimatedBoolean**: a cylinder cuts a rounded box. Adjust its
-   cutter radius, travel and speed, or the FidgetMesh component's detail.
+   cutter radius, travel, speed, and detail on its single shape component.
 4. **InteractiveParameters** updates a torus only when its radii change. Its
    public setters can also be connected to UI sliders.
 5. **SharedShapeInstances** reuses one compiled expression for four independent,
@@ -18,6 +18,11 @@ project includes the usual Unity packages and Unity Pipeline for Editor automati
    flat-shaded material.
 
 All scenes default to detail 6; detail remains adjustable in the Inspector.
+AnimatedBoolean and InteractiveParameters define shapes by deriving from
+`FidgetMesh<T>` and overriding `Define`. Update their C# properties directly; the
+component handles preparation, scheduling, and cleanup. SharedShapeInstances
+illustrates explicit sharing through the advanced stream API.
+
 The three general API examples use ordinary URP Lit and `MeshNormals.Surface`.
 Fidget's expression branches select surface gradients, keeping curved surfaces
 smooth and splitting render vertices at differing normals. No crease-angle
