@@ -296,7 +296,8 @@ pub unsafe extern "C" fn fidget_mesh_write_normals(
         std::slice::from_raw_parts_mut(normals, mesh.mesh.vertices.len() * 3)
     };
     if let Some(prepared) = &mesh.normals {
-        for (out, normal) in out.chunks_exact_mut(3).zip(prepared) {
+        for (out, normal) in out.as_chunks_mut::<3>().0.iter_mut().zip(prepared)
+        {
             out.copy_from_slice(normal.as_slice());
         }
         return OK;
@@ -312,7 +313,7 @@ pub unsafe extern "C" fn fidget_mesh_write_normals(
             }
         }
     }
-    for n in out.chunks_exact_mut(3) {
+    for n in out.as_chunks_mut::<3>().0 {
         let v = nalgebra::Vector3::new(n[0], n[1], n[2]);
         let normal = v.try_normalize(1.0e-20).unwrap_or(nalgebra::Vector3::y());
         n.copy_from_slice(normal.as_slice());

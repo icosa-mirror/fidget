@@ -23,6 +23,97 @@ pub(crate) struct SurfaceWorkspace {
     gradient: ShapeBulkEval<<VmFunction as Function>::GradSliceEval>,
 }
 
+impl SurfaceWorkspace {
+    pub(crate) fn prepare(
+        &mut self,
+        shape: &VmShape,
+        values: &ShapeVars<f32>,
+        mesh: Mesh,
+    ) -> Option<(Mesh, Vec<Vector3<f32>>)> {
+        let tape = shape.ez_point_tape();
+        // Bound this cache to the current mesh; arbitrary expressions can have
+        // many traces, so retaining all traces across animation could grow forever.
+        let mut branches = HashMap::new();
+        let mut key = Vec::new();
+        let mut output = Mesh::new();
+        output.vertices.reserve(mesh.vertices.len());
+        output.triangles.reserve(mesh.triangles.len());
+        let mut normals = Vec::with_capacity(mesh.vertices.len());
+        let mut vertices: HashMap<NormalKey, usize> = HashMap::new();
+        for face in mesh.triangles {
+            let centroid = (mesh.vertices[face[0]]
+                + mesh.vertices[face[1]]
+                + mesh.vertices[face[2]])
+                / 3.0;
+            let (_, trace) = self
+                .point
+                .eval_with_vars(
+                    &tape, centroid.x, centroid.y, centroid.z, values,
+                )
+                .ok()?;
+            key.clear();
+            if let Some(trace) = trace {
+                key.extend(trace.as_slice().iter().map(|choice| *choice as u8));
+            }
+            if !branches.contains_key(&key) {
+                let branch = match trace {
+                    Some(trace) => shape.ez_simplify(trace).ok()?,
+                    None => shape.clone(),
+                };
+                branches.insert(key.clone(), branch.ez_grad_slice_tape());
+            }
+            let branch = &branches[&key];
+            let points = face.map(|i| mesh.vertices[i]);
+            let xs = points.map(|p| Grad::new(p.x, 1.0, 0.0, 0.0));
+            let ys = points.map(|p| Grad::new(p.y, 0.0, 1.0, 0.0));
+            let zs = points.map(|p| Grad::new(p.z, 0.0, 0.0, 1.0));
+            let gradients = self
+                .gradient
+                .eval_with_vars(
+                    branch,
+                    xs.as_slice(),
+                    ys.as_slice(),
+                    zs.as_slice(),
+                    values,
+                )
+                .ok()?;
+            let mut triangle = Vector3::zeros();
+            for corner in 0..3 {
+                let g = gradients[corner];
+                let mut normal = Vector3::new(g.dx, g.dy, g.dz);
+                let length = normal.norm();
+                if !length.is_finite() || length == 0.0 {
+                    return None;
+                }
+                normal /= length;
+                // Treat signed zeros as equal; no angular/position tolerance is used.
+                for n in normal.iter_mut() {
+                    if *n == 0.0 {
+                        *n = 0.0;
+                    }
+                }
+                let normal_key = (
+                    face[corner],
+                    [
+                        normal.x.to_bits(),
+                        normal.y.to_bits(),
+                        normal.z.to_bits(),
+                    ],
+                );
+                let index = *vertices.entry(normal_key).or_insert_with(|| {
+                    let index = output.vertices.len();
+                    output.vertices.push(points[corner]);
+                    normals.push(normal);
+                    index
+                });
+                triangle[corner] = index;
+            }
+            output.triangles.push(triangle);
+        }
+        Some((output, normals))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -140,96 +231,5 @@ mod tests {
                     > 0.99999
             );
         }
-    }
-}
-
-impl SurfaceWorkspace {
-    pub(crate) fn prepare(
-        &mut self,
-        shape: &VmShape,
-        values: &ShapeVars<f32>,
-        mesh: Mesh,
-    ) -> Option<(Mesh, Vec<Vector3<f32>>)> {
-        let tape = shape.ez_point_tape();
-        // Bound this cache to the current mesh; arbitrary expressions can have
-        // many traces, so retaining all traces across animation could grow forever.
-        let mut branches = HashMap::new();
-        let mut key = Vec::new();
-        let mut output = Mesh::new();
-        output.vertices.reserve(mesh.vertices.len());
-        output.triangles.reserve(mesh.triangles.len());
-        let mut normals = Vec::with_capacity(mesh.vertices.len());
-        let mut vertices: HashMap<NormalKey, usize> = HashMap::new();
-        for face in mesh.triangles {
-            let centroid = (mesh.vertices[face[0]]
-                + mesh.vertices[face[1]]
-                + mesh.vertices[face[2]])
-                / 3.0;
-            let (_, trace) = self
-                .point
-                .eval_with_vars(
-                    &tape, centroid.x, centroid.y, centroid.z, values,
-                )
-                .ok()?;
-            key.clear();
-            if let Some(trace) = trace {
-                key.extend(trace.as_slice().iter().map(|choice| *choice as u8));
-            }
-            if !branches.contains_key(&key) {
-                let branch = match trace {
-                    Some(trace) => shape.ez_simplify(trace).ok()?,
-                    None => shape.clone(),
-                };
-                branches.insert(key.clone(), branch.ez_grad_slice_tape());
-            }
-            let branch = &branches[&key];
-            let points = face.map(|i| mesh.vertices[i]);
-            let xs = points.map(|p| Grad::new(p.x, 1.0, 0.0, 0.0));
-            let ys = points.map(|p| Grad::new(p.y, 0.0, 1.0, 0.0));
-            let zs = points.map(|p| Grad::new(p.z, 0.0, 0.0, 1.0));
-            let gradients = self
-                .gradient
-                .eval_with_vars(
-                    branch,
-                    xs.as_slice(),
-                    ys.as_slice(),
-                    zs.as_slice(),
-                    values,
-                )
-                .ok()?;
-            let mut triangle = Vector3::zeros();
-            for corner in 0..3 {
-                let g = gradients[corner];
-                let mut normal = Vector3::new(g.dx, g.dy, g.dz);
-                let length = normal.norm();
-                if !length.is_finite() || length == 0.0 {
-                    return None;
-                }
-                normal /= length;
-                // Treat signed zeros as equal; no angular/position tolerance is used.
-                for n in normal.iter_mut() {
-                    if *n == 0.0 {
-                        *n = 0.0;
-                    }
-                }
-                let normal_key = (
-                    face[corner],
-                    [
-                        normal.x.to_bits(),
-                        normal.y.to_bits(),
-                        normal.z.to_bits(),
-                    ],
-                );
-                let index = *vertices.entry(normal_key).or_insert_with(|| {
-                    let index = output.vertices.len();
-                    output.vertices.push(points[corner]);
-                    normals.push(normal);
-                    index
-                });
-                triangle[corner] = index;
-            }
-            output.triangles.push(triangle);
-        }
-        Some((output, normals))
     }
 }
