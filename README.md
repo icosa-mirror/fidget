@@ -1,88 +1,146 @@
-# Fidget for Unity 6.3
+# Fidget for Unity
 
-This integration uses the CPU mesher on a Unity worker job and hands completed
-buffers to a persistent Unity `Mesh`. The sphere is the initial geometry source;
-the transfer path does not assume constant vertex counts or topology.
+Create implicit geometry in C#, compile its expression once, and update parameters
+without rebuilding the expression. Native libraries are included in the UPM
+package for Windows x64, macOS Intel/ARM64, Linux x64, Android ARM64/x64, and iOS
+ARM64. The evaluator uses Fidget's VM, not runtime-generated machine code.
 
-## Data path and ownership
+## Install
 
-1. `Schedule` allocates one writable `MeshData` entry and schedules an `IJob`.
-2. The job calls Rust to generate a mesh. The native handle owns Fidget's original
-   vertex and triangle arrays; there are no additional packed staging arrays.
-3. The job queries counts and sizes Unity's writable vertex/index buffers. Rust
-   writes directly to their pointers, packing positions and converting indices
-   to 32-bit in one pass per array. It computes bounds in the position pass.
-4. The job frees the original native mesh. Unity's populated buffers now contain
-   the only application-owned copy of the completed geometry.
-5. `TryApply` checks completion, then applies and disposes the writable data on
-   the main thread. The same `Mesh` object is reused, with explicit new bounds.
+In Package Manager, choose **Install package from Git URL** and enter:
 
-There are no managed vertex/index arrays, per-update Tasks, pinning, normal
-recalculation, main-thread bounds scans, or queues of stale shape requests.
-Layout and result storage are persistent native arrays. Only one job may be in
-flight per stream; busy `Schedule` calls return false. Submit current parameters
-again after applying the finished result. The last completed mesh stays visible.
+```text
+https://github.com/icosa-mirror/fidget.git#upm
+```
 
-Fidget still allocates its own mesh, and Unity allocates writable buffers for
-each update. Unity controls the final GPU upload and graphics-buffer allocation;
-this is not a claim of zero GPU copies or zero engine allocations. Changing
-topology is handled without guessing capacities or retaining worst-case buffers
-on mobile. The same path handles unchanged counts without special cases.
+For reproducible projects, pin the published commit instead of the moving branch.
+Use the `upm-simulator` distribution for an ARM64 iOS simulator; do not install
+both iOS variants. No separate native-library download or Rust installation is
+needed. The package source directory alone does not contain the native binaries.
 
-`Mesh.GetNativeVertexBufferPtr` gives a graphics-API resource handle, not a CPU
-pointer that Rust can write through. Direct Metal/Vulkan/D3D buffer integration
-would need resource ownership, synchronization and render-thread handling for
-each backend. This package uses the portable
-[writable MeshData API](https://docs.unity.com/en-us/engine/6000.3/script-reference/unityengine/mesh/allocatewritablemeshdata)
-and leaves those GPU responsibilities with Unity.
+The committed example project uses Unity 6000.6.0f1 and URP 17.6.0. The runtime
+package requires Unity 6.3 or later. Import **Examples** from this package's Samples
+tab for the scripts and scenes described below.
 
-## Install and display
+## Component workflow
 
-Use an assembled package containing ABI-v2 libraries, not this source directory
-alone. Phase-1 ABI-v1 binaries are rejected before any worker job is scheduled.
-Install the generated `.tgz` through Package Manager's **Install package from
-tarball**, or add the assembled folder's `package.json` as a local package.
+Add `FidgetMesh` to a GameObject and assign a material to its MeshRenderer. Build a
+shape in your script's `Start`, then update its parameters in `Update`:
 
-1. Add a `ChangingSphere` component to a GameObject. It supplies MeshFilter and
-   MeshRenderer automatically.
-2. Create a material using the included `Fidget/Preview` shader and assign it to
-   the renderer. Put a camera in front of the object and enter Play mode.
-3. Adjust radius, amplitude, speed and detail in the Inspector. Each completed
-   update replaces the displayed geometry. Busy frames keep the previous mesh.
+```csharp
+var builder = new ShapeBuilder();
+var radius = builder.Parameter("radius", 0.6f);
+var solid = builder.Subtract(builder.Sphere(radius),
+    builder.Box(new Vector3(0.2f, 1f, 0.2f)));
+var output = GetComponent<FidgetMesh>();
+output.Initialize(builder.Compile(solid),
+    new MeshSettings(new Bounds(Vector3.zero, Vector3.one * 2),
+        depth: 5, normals: MeshNormals.Surface));
 
-The preview shader derives flat lighting from fragment derivatives, so it needs
-only positions and indices. General production materials will need an explicit
-normal/UV strategy; the adapter does not silently add these costs.
+// In Update, using the cached parameter key:
+output.Parameters.Set(radius, animatedRadius);
+```
 
-For application code, construct `SphereMeshStream` on the main thread, assign its
-`Mesh` to your renderer, call `TryApply` followed by `Schedule`, and dispose it
-on the main thread at teardown. `TryApply` does not wait for an unfinished job.
-`Dispose` must wait for any running native call before releasing its buffers.
-Do not dispose the exposed Mesh separately or call the controller concurrently.
+`Initialize` transfers ownership of the compiled shape to the component. The
+component applies completed geometry and schedules the latest parameters in
+`LateUpdate`. Disabling it completes outstanding work and releases mesh buffers;
+reenabling creates a fresh stream. Destruction also releases the compiled shape.
+Use `Continuous = false` and `RequestUpdate()` for event-driven geometry.
 
-## Platform details
+## Direct mesh-stream workflow
 
-Plugin import settings select the appropriate OS and CPU, including the Editor.
-iOS calls use `__Internal`; other targets use the platform shared library.
-Choose the iOS **device** package for device builds. Simulator archives are
-packaged separately because both variants are ARM64 and must never be linked
-together. The iOS build hook adds Rust's `iconv` link dependency to UnityFramework.
+Use `MeshStream` when you control scheduling or share one compiled shape across
+several objects. Each stream owns an independent mesher and parameter snapshot:
 
-The integration uses a non-Burst Unity job: the Rust library performs the native
-computation. Fidget's internal threading is disabled for this probe, avoiding a
-second worker pool per generation request. There are no managed callbacks from
-Rust, and all P/Invoke arguments are fixed-layout values or pointers.
+```csharp
+// Initialize on the main thread; retain these objects in fields.
+var shape = builder.Compile(solid);
+var parameters = shape.CreateParameters();
+var stream = new MeshStream(shape, settings);
+meshFilter.sharedMesh = stream.Mesh;
 
-## Validation
+// Each frame:
+parameters.Set(radius, animatedRadius);
+stream.TryApply();
+stream.TrySchedule(parameters);
 
-`Icosa.Fidget.Editor.IntegrationCheck.Run` is an Editor batch entry point for a
-dedicated validation project. It runs two job updates with different topology,
-checks resulting bounds/indices/positions, renders the mesh to a texture, and
-disposes a stream with work still in flight. It logs `[FidgetUnity] PASS` and
-saves `Logs/fidget-preview.png`. This is an integration check, not a benchmark.
+// During teardown, on the main thread:
+stream.Dispose();
+shape.Dispose();
+```
 
-Windows Unity 6000.3.18f1 has passed that check with graphics enabled. The local
-Package Manager failed before compilation, so this execution used the assembled
-package under `Assets/Fidget` with `-noUpm`. UPM installation, IL2CPP players and
-mobile Unity runtime execution still need validation; native CI builds alone do
-not establish those results.
+Keep the compiled shape until all desired streams have been created. Existing
+streams retain the native expression and remain usable after `shape.Dispose()`.
+Do not destroy `stream.Mesh` separately. All public controller and parameter APIs
+are main-thread APIs; do not call them concurrently.
+
+`TrySchedule` returns false while busy, without queuing the request. On success it
+copies parameter values into a persistent native snapshot, so subsequent parameter
+edits cannot change work already running. The previous completed mesh remains
+visible. `TryApply` never waits for unfinished work; disposal does wait, to avoid
+freeing resources a job still uses. An overload accepts a per-request depth.
+
+## Shapes and settings
+
+1. `Sphere`, `Box` (half extents), `Cylinder` (Y axis), and `Torus` produce implicit
+   expressions. `Union`, `Intersect`, and `Subtract` combine them.
+2. Arithmetic, `Min`, `Max`, `Abs`, `Sqrt`, `Square`, `Sin`, and `Cos` support custom
+   expressions using the builder's `X`, `Y`, and `Z` coordinates.
+3. `Translate`, `RotateY` (radians), affine `Transform`, and general `Remap` change
+   coordinates. Expressions and parameter keys must come from the same builder.
+4. `MeshSettings.Bounds` is an explicit local-space sampling domain. Keep the whole
+   surface inside it. Geometry outside the domain is not generated. Depth ranges
+   from 1 to 8; thin details below the sampling resolution can be missed.
+5. `MeshNormals.None` writes positions and indices only. `MeshNormals.Smooth`
+   additionally writes area-weighted smooth normals for ordinary lit materials.
+   This costs a worker-side triangle pass; it does not split hard edges or add UVs.
+   Use solid-color URP Lit or triplanar materials when UVs are unnecessary.
+6. `MeshNormals.Surface` evaluates Fidget's expression gradients using the branch
+   trace selected at each triangle's centroid. Different corner normals get
+   separate render vertices; geometric positions and triangles are unchanged.
+   There is no crease-angle threshold. This is recovered face classification,
+   not provenance exported by the mesher: a triangle spanning a branch boundary
+   cannot represent that transition exactly. It adds expression evaluation,
+   normal storage, and potentially more render vertices. The rounded-box Boolean
+   example has been visually reviewed; this is not a universal hard-edge guarantee.
+
+Parameter values must be finite; applications must also keep expressions valid
+(e.g. avoid division by zero and negative square roots). Bounds, depth, graph
+references, and parameter ownership are checked before native work where possible.
+Invalid arguments and native failures produce descriptive managed exceptions.
+
+## Examples
+
+1. **Animated Boolean**: a cylinder cuts a rounded box; animate its offset and
+   radius without rebuilding the expression. Uses `FidgetMesh`.
+2. **Interactive Parameters**: change a torus through Inspector controls or bind
+   UI sliders to its setters. Regenerates only when parameters change.
+3. **Shared Shape Instances**: one compiled shape, independent parameters and
+   jobs for multiple objects. Shows explicit lifetime management with `MeshStream`.
+
+`ChangingSphere` and `SphereMeshStream` remain available for the original example.
+
+## Data path
+
+The worker calls Fidget, sizes Unity writable MeshData buffers to the actual output,
+and writes positions/indices directly into those buffers. Bounds are computed in
+the position-copy pass. Optional normals use a separate vertex stream. The worker
+then frees Fidget's original mesh. The main thread applies the result to one
+persistent Unity Mesh without rescanning bounds or indices.
+
+There are no managed vertex/index arrays, managed callbacks from Rust, per-frame
+Tasks, or an additional native thread pool. The compiled expression and parameter
+storage are reused. Fidget still allocates meshing scratch/output, and Unity
+allocates writable buffers and performs the GPU upload. This is not a zero-copy
+GPU implementation. Direct graphics-buffer handles are not CPU-writable pointers.
+
+## Validation and platforms
+
+The native C smoke test covers parameter updates, shared-shape lifetime, custom
+bounds, normals, output indices, and invalid arguments. Native CI builds every
+packaged target and checks Android 16 KB alignment and iOS static linking.
+
+Native build results do not establish Unity player or device compatibility.
+Record Windows Editor, IL2CPP player, and mobile-device checks separately when
+releasing a new package. The iOS post-build hook links iconv into UnityFramework.
+The example project's README records its current live validation results.
