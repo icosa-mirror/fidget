@@ -1,5 +1,23 @@
 # Assembling the Unity package
 
+Applications consume the complete package through Unity Package Manager:
+
+```json
+"com.icosa.fidget": "https://github.com/icosa-mirror/fidget.git#upm"
+```
+
+The `upm` branch contains both C# and native libraries. Use `upm-simulator` for
+macOS plus ARM64 iOS simulator libraries. Consumers do not assemble the package
+or install native libraries separately. The example lives in `examples/unity`.
+
+Maintainers publish a successful native CI run using the manual **Publish Unity
+Package Manager branches** workflow, supplying its run ID. It validates and
+publishes both complete packages with ordinary fast-forward pushes. Builds alone
+do not change the distribution branches. The first publication is required
+before the Git dependencies can resolve; publication requires push authorization.
+
+The instructions below are for package development and CI, not example users.
+
 Source is in `com.icosa.fidget`. Native binaries and generated `.meta` files are
 assembled under `target/`, not committed. Rust/CI build artifacts must contain
 `ABI: 2` in `BUILD-INFO.txt`; phase-1 archives intentionally fail this check.
