@@ -14,6 +14,11 @@ ensure Quality settings do not override it with a different pipeline.
 4. Open Scenes/ChangingSphere.unity for the minimal sphere stream and a
    positions-only flat-shaded material.
 
+The examples expose shape values as typed C# properties, such as
+`CutterMesh.CutterOffset` and `TorusMesh.MajorRadius`. Their definitions bind those
+properties once; updates assign the properties directly. The shared example binds
+four model instances to one compiled definition.
+
 The lit examples request expression-derived surface normals, with hard transitions
 selected from Fidget's branch traces. See the package README for face-classification
 limitations. The included URP Flat Preview shader

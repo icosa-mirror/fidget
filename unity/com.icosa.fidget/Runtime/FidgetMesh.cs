@@ -34,6 +34,14 @@ namespace Icosa.Fidget
             _requested = true;
             if (isActiveAndEnabled) StartStream();
         }
+        /// <summary>Transfers compiled-shape ownership and binds a typed model to this component.</summary>
+        public void Initialize<T>(CompiledShape<T> shape, T model, MeshSettings settings) where T : class
+        {
+            if (shape == null) throw new ArgumentNullException(nameof(shape));
+            var parameters = shape.CreateParameters(model);
+            Initialize(shape.Shape, settings);
+            Parameters = parameters;
+        }
         public void RequestUpdate() => _requested = true;
         private void StartStream()
         {
@@ -55,8 +63,9 @@ namespace Icosa.Fidget
         private void LateUpdate()
         {
             if (Stream == null) return;
+            if (Parameters.CaptureBindings()) _requested = true;
             Stream.TryApply();
-            if ((Continuous || _requested) && Stream.TrySchedule(Parameters, Detail)) _requested = false;
+            if ((Continuous || _requested) && Stream.TrySchedule(Parameters, Detail, false)) _requested = false;
         }
         private void OnDisable() => StopStream();
         private void OnDestroy() { StopStream(); _shape?.Dispose(); _shape = null; }

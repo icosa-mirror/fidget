@@ -28,39 +28,58 @@ Add `FidgetMesh` to a GameObject and assign a material to its MeshRenderer. Buil
 shape in your script's `Start`, then update its parameters in `Update`:
 
 ```csharp
-var builder = new ShapeBuilder();
-var radius = builder.Parameter("radius", 0.6f);
-var solid = builder.Subtract(builder.Sphere(radius),
-    builder.Box(new Vector3(0.2f, 1f, 0.2f)));
-var output = GetComponent<FidgetMesh>();
-output.Initialize(builder.Compile(solid),
+public sealed class CutterMesh
+{
+    public float CutterOffset { get; set; }
+    public float CutterRadius { get; set; } = 0.32f;
+
+    public static CompiledShape<CutterMesh> Compile()
+    {
+        var shape = new ShapeBuilder<CutterMesh>();
+        var offset = shape.Parameter(mesh => mesh.CutterOffset);
+        var radius = shape.Parameter(mesh => mesh.CutterRadius);
+        var body = shape.Intersect(shape.Sphere(0.85f), shape.Box(Vector3.one * 0.65f));
+        var cutter = shape.Translate(shape.Cylinder(radius, 1.2f), offset, 0, 0);
+        return shape.Compile(shape.Subtract(body, cutter));
+    }
+}
+
+// Initialize once; keep _mesh as a CutterMesh field.
+_mesh = new CutterMesh();
+output.Initialize(CutterMesh.Compile(), _mesh,
     new MeshSettings(new Bounds(Vector3.zero, Vector3.one * 2),
         depth: 6, normals: MeshNormals.Surface));
 
-// In Update, using the cached parameter key:
-output.Parameters.Set(radius, animatedRadius);
+// Update ordinary typed properties:
+_mesh.CutterOffset = offset;
+_mesh.CutterRadius = radius;
 ```
 
+The definition binds typed property accessors once. Accessors are ordinary C#
+delegates, compatible with IL2CPP: there is no reflection, runtime code generation,
+or string lookup. Keep them inexpensive and free of side effects. The adapter reads
+these floats on the main thread into reusable storage, then snapshots them before
+scheduling a worker. No graph rebuild or per-frame binding allocation is required.
+
 `Initialize` transfers ownership of the compiled shape to the component. The
-component applies completed geometry and schedules the latest parameters in
-`LateUpdate`. Disabling it completes outstanding work and releases mesh buffers;
+component applies completed geometry and schedules the latest values in `LateUpdate`.
+With `Continuous = false`, changed property values automatically request a new
+mesh. Disabling the component completes outstanding work and releases mesh buffers;
 reenabling creates a fresh stream. Destruction also releases the compiled shape.
-Use `Continuous = false` and `RequestUpdate()` for event-driven geometry.
 
 ## Direct mesh-stream workflow
 
-Use `MeshStream` when you control scheduling or share one compiled shape across
-several objects. Each stream owns an independent mesher and parameter snapshot:
+Compile one typed definition and bind independent model instances to its streams:
 
 ```csharp
-// Initialize on the main thread; retain these objects in fields.
-var shape = builder.Compile(solid);
-var parameters = shape.CreateParameters();
-var stream = new MeshStream(shape, settings);
+var shape = CutterMesh.Compile();
+var mesh = new CutterMesh();
+var parameters = shape.CreateParameters(mesh);
+var stream = new MeshStream(shape.Shape, settings);
 meshFilter.sharedMesh = stream.Mesh;
 
 // Each frame:
-parameters.Set(radius, animatedRadius);
+mesh.CutterOffset = offset;
 stream.TryApply();
 stream.TrySchedule(parameters);
 
@@ -68,6 +87,11 @@ stream.TrySchedule(parameters);
 stream.Dispose();
 shape.Dispose();
 ```
+
+Each call to `CreateParameters(model)` binds that model independently, so another
+stream can use a different `CutterMesh` without recompiling the expression. The
+low-level non-generic builder and explicit parameter handles remain available for
+dynamically constructed graphs; named parameters are optional there.
 
 Keep the compiled shape until all desired streams have been created. Existing
 streams retain the native expression and remain usable after `shape.Dispose()`.
@@ -87,7 +111,7 @@ freeing resources a job still uses. An overload accepts a per-request depth.
 2. Arithmetic, `Min`, `Max`, `Abs`, `Sqrt`, `Square`, `Sin`, and `Cos` support custom
    expressions using the builder's `X`, `Y`, and `Z` coordinates.
 3. `Translate`, `RotateY` (radians), affine `Transform`, and general `Remap` change
-   coordinates. Expressions and parameter keys must come from the same builder.
+   coordinates. Expressions and low-level parameter keys must come from the same builder.
 4. `MeshSettings.Bounds` is an explicit local-space sampling domain. Keep the whole
    surface inside it. Geometry outside the domain is not generated. Depth ranges
    from 1 to 8; thin details below the sampling resolution can be missed.
