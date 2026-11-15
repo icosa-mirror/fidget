@@ -24,7 +24,7 @@ namespace Icosa.Fidget.Samples
                 _streams = new MeshStream[count]; _values = new ParameterValues[count]; _objects = new GameObject[count];
                 for (int i = 0; i < count; ++i)
                 {
-                    _streams[i] = new MeshStream(_shape, new MeshSettings(new Bounds(Vector3.zero, Vector3.one * 2), Detail, MeshNormals.Smooth));
+                    _streams[i] = new MeshStream(_shape, new MeshSettings(new Bounds(Vector3.zero, Vector3.one * 2), Detail, MeshNormals.Surface));
                     _values[i] = _shape.CreateParameters();
                     var go = _objects[i] = new GameObject($"Shared shape {i + 1}", typeof(MeshFilter), typeof(MeshRenderer));
                     go.transform.SetParent(transform, false);

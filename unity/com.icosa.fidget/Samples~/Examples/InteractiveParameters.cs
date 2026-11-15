@@ -18,7 +18,7 @@ namespace Icosa.Fidget.Samples
             _tube = shape.Parameter("tubeRadius", TubeRadius);
             _mesh = GetComponent<FidgetMesh>();
             _mesh.Continuous = false;
-            _mesh.Initialize(shape.Compile(shape.Torus(_major, _tube)), new MeshSettings(new Bounds(Vector3.zero, Vector3.one * 2), 5, MeshNormals.Smooth));
+            _mesh.Initialize(shape.Compile(shape.Torus(_major, _tube)), new MeshSettings(new Bounds(Vector3.zero, Vector3.one * 2), _mesh.Detail, MeshNormals.Surface));
         }
         public void SetMajorRadius(float value) => MajorRadius = Mathf.Clamp(value, 0.1f, 0.65f);
         public void SetTubeRadius(float value) => TubeRadius = Mathf.Clamp(value, 0.05f, 0.25f);

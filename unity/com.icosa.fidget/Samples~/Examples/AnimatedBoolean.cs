@@ -20,7 +20,7 @@ namespace Icosa.Fidget.Samples
             var cutter = shape.Translate(shape.Cylinder(_radius, 1.2f), _offset, 0, 0);
             var solid = shape.Subtract(body, cutter);
             _mesh = GetComponent<FidgetMesh>();
-            _mesh.Initialize(shape.Compile(solid), new MeshSettings(new Bounds(Vector3.zero, Vector3.one * 2), 5, MeshNormals.Smooth));
+            _mesh.Initialize(shape.Compile(solid), new MeshSettings(new Bounds(Vector3.zero, Vector3.one * 2), _mesh.Detail, MeshNormals.Surface));
         }
         private void Update()
         {

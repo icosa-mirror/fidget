@@ -1,12 +1,20 @@
 # Examples
 
-Import this sample from Package Manager. Each script builds its expression once
-and supplies its MeshRenderer through FidgetMesh or MeshStream.
+Import **Examples** from Package Manager. The Rendering folder contains a URP
+pipeline asset, renderer, and materials. In a project without a configured URP
+pipeline, assign Rendering/FidgetURP.asset in Project Settings > Graphics and
+ensure Quality settings do not override it with a different pipeline.
 
-1. AnimatedBoolean: add to a GameObject, assign a URP Lit material, and press Play.
-2. InteractiveParameters: add to a GameObject with a URP Lit material; adjust its
-   Inspector sliders in Play mode or connect UI Slider events to the setters.
-3. SharedShapeInstances: add to an empty GameObject and assign its Material field.
+1. Open Scenes/AnimatedBoolean.unity and press Play. Change the cutter radius,
+   travel, speed, and FidgetMesh detail in the Inspector.
+2. Open Scenes/InteractiveParameters.unity and adjust the torus radii in Play
+   mode. The script also exposes setters suitable for UI Slider events.
+3. Open Scenes/SharedShapeInstances.unity to see one compiled expression drive
+   several objects with independent parameters and mesh streams.
 
-All three request smooth vertex normals. Configure URP in the consuming project.
-The repository's examples/unity project includes ready-to-run scenes and materials.
+The lit examples request expression-derived surface normals, with hard transitions
+selected from Fidget's branch traces. This mode is under validation; see the package
+README for face-classification limitations. The included URP Flat Preview shader
+is an alternative that needs only positions and indices.
+
+The repository's examples/unity project already has this URP pipeline configured.
