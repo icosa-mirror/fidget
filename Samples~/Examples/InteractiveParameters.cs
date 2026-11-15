@@ -1,9 +1,10 @@
+using Icosa.Fidget;
 using UnityEngine;
 
-namespace Icosa.Fidget.Samples
+namespace FidgetExamples
 {
     /// <summary>On-demand updates from Inspector properties or UI sliders.</summary>
-    public sealed class InteractiveParameters : FidgetMesh<InteractiveParameters>
+    public class InteractiveParameters : FidgetMesh<InteractiveParameters>
     {
         [field: SerializeField, Range(0.1f, 0.65f)] public float MajorRadius { get; set; } = 0.5f;
         [field: SerializeField, Range(0.05f, 0.25f)] public float TubeRadius { get; set; } = 0.15f;

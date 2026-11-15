@@ -55,6 +55,7 @@ namespace Icosa.Fidget
             return values;
         }
 
+        internal CompiledShape<T> Retain() => new CompiledShape<T>(Shape.Retain(), _slots, _readers);
         public void Dispose() => Shape.Dispose();
     }
 }
