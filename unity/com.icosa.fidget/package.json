@@ -1,0 +1,8 @@
+{
+  "name": "com.icosa.fidget",
+  "version": "0.2.0",
+  "displayName": "Fidget Native Meshing",
+  "description": "Worker-job native meshing directly into Unity writable MeshData.",
+  "unity": "6000.3",
+  "license": "MPL-2.0"
+}

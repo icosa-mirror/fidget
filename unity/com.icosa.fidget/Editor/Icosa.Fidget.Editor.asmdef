@@ -1,0 +1,5 @@
+{
+  "name": "Icosa.Fidget.Editor",
+  "references": ["Icosa.Fidget"],
+  "includePlatforms": ["Editor"]
+}
