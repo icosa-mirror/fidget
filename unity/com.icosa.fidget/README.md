@@ -68,6 +68,27 @@ runtime code generation, or string lookup. Keep them inexpensive and free of sid
 effects. Binding storage is reused across frames. If you override `OnEnable`,
 `OnDisable`, `LateUpdate`, `OnDestroy`, or `Reset`, call the base implementation.
 
+## Shared component definitions
+
+Create another component using an existing component's prepared expression:
+
+```csharp
+var instance = source.CreateSharedInstance(parent);
+instance.Radius = 0.7f;
+```
+
+This creates a plain shape GameObject, copying the source's meshing settings and
+materials. Shape properties start at their class defaults and remain independent.
+Each instance owns its own mesh and worker state. The definition is prepared only
+once and retained independently, so destroying or rebuilding the source does not
+invalidate its existing instances. Instances can create further shared instances.
+
+To share with an existing component of the same type, call
+`target.ShareDefinition(source)`. Its property values and settings are preserved.
+Sharing selects the source's current expression; subsequent `Rebuild()` calls
+change only the rebuilt component. Bind changing inputs through the accessor's
+argument (`mesh => mesh.Radius`), so each instance reads its own values.
+
 ## Direct mesh-stream workflow
 
 Compile one typed definition and bind independent model instances to its streams:
@@ -143,7 +164,7 @@ Invalid arguments and native failures produce descriptive managed exceptions.
    `FidgetMesh<AnimatedBoolean>` and defines the expression in `Define`.
 2. **Interactive Parameters**: change a torus through Inspector controls or bind
    UI sliders to its setters. Regenerates only when parameters change.
-3. **Shared Shape Instances**: one compiled shape, independent parameters and
+3. **Shared Shape Instances**: one shared component definition, independent properties and
    jobs for multiple objects. Shows explicit lifetime management with `MeshStream`.
 
 `ChangingSphere` lives with the imported example scripts. It derives from
