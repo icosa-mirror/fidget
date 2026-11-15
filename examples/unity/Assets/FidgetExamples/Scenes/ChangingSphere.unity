@@ -310,7 +310,7 @@ GameObject:
   - component: {fileID: 2129142927}
   - component: {fileID: 2129142926}
   - component: {fileID: 2129142925}
-  - component: {fileID: 2129142924}
+  - component: {fileID: 2129142928}
   m_Layer: 0
   m_Name: Changing Sphere
   m_TagString: Untagged
@@ -318,22 +318,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &2129142924
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2129142923}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 1ff77c3818f65fce8fedb0f60fc96bc2, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Icosa.Fidget::Icosa.Fidget.ChangingSphere
-  Detail: 6
-  Radius: 0.6
-  Amplitude: 0.15
-  Speed: 1
 --- !u!23 &2129142925
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -406,6 +390,22 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &2129142928
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2129142923}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3b7fcbac9f8a0a94abda62806e36cced, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Icosa.Fidget.Samples.ChangingSphere
+  Detail: 6
+  Radius: 0.6
+  Amplitude: 0.15
+  Speed: 1
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
