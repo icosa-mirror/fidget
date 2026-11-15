@@ -1,32 +1,46 @@
-# Native meshing build probe
+# Native meshing adapter
 
-This crate establishes a C ABI and platform builds for a future Unity 6.3
-integration. It uses `fidget-core`'s VM evaluator and `fidget-mesh`, without
-`fidget-jit`. It is not a production per-frame meshing API or a Unity package.
-The upstream `workspace-hack` dependency still unifies development dependencies
-(including WGPU on some desktop targets); it is not used to generate this mesh.
+This crate exposes Fidget's VM evaluator and manifold dual-contouring mesher
+through a C ABI. The Unity integration uses reusable meshers on worker jobs;
+there is no JIT or managed callback. The upstream `workspace-hack` dependency
+unifies development dependencies (including WGPU on some desktop targets),
+but those are not used to generate these meshes.
 
 ## C API
 
-ABI v2 is defined in [include/fidget_native.h](include/fidget_native.h).
-`fidget_mesh_sphere(0.6f, 4, &mesh)` generates a sphere in `[-1, 1]^3`.
-`fidget_mesh_get_counts` reports output sizes, then `fidget_mesh_copy_to` writes
-positions and 32-bit indices into caller-owned buffers. Bounds are calculated
-in the same position-copy pass. `fidget_mesh_free` releases the original mesh;
-the caller's copied buffers remain valid. The native handle retains Fidget's
-original mesh, without first allocating separate packed arrays.
+ABI **v4** is defined in [include/fidget_native.h](include/fidget_native.h).
+Applications should normally use the [Unity API](../unity/com.icosa.fidget/README.md).
 
-This deliberately replaces the phase-1 borrowed-view ABI. Rebuild all native
-libraries when upgrading; Unity checks for ABI v2 before scheduling work.
+1. `fidget_shape_compile` compiles a topologically ordered expression graph with
+   parameter slots. The final node is the root. Arithmetic, Boolean operations,
+   and coordinate remapping are supported; the header defines each opcode.
+2. `fidget_mesher_create` retains the compiled shape and creates reusable evaluator
+   state. The original shape handle may then be freed. Independent meshers can
+   run concurrently; each individual mesher is single-caller.
+3. `fidget_mesher_generate` takes parameter values, explicit bounds, and depth
+   (1 through 8). It produces a new native mesh synchronously without spawning
+   internal worker threads.
+4. Optionally call `fidget_mesh_prepare_surface_normals` before querying counts.
+   It selects a branch trace at each triangle centroid and evaluates that
+   branch's gradients at the corners. Differing normals split render vertices
+   without moving geometry; no crease-angle threshold is used. A triangle
+   spanning a branch boundary cannot represent that transition exactly.
+   Preparation must use the mesher's most recent generated mesh and parameters.
+   If preparation fails, free the mesh: its input has been consumed.
+5. `fidget_mesh_get_counts` reports output sizes. `fidget_mesh_copy_to` writes
+   positions and 32-bit indices directly into caller-owned buffers and computes
+   bounds during the position copy. `fidget_mesh_write_normals` copies prepared
+   surface normals, or computes area-weighted smooth normals if unprepared.
+6. `fidget_mesh_free` releases the native mesh after copying. Caller buffers
+   remain valid. Free the mesher when its stream is finished.
 
-The probe is synchronous and single-threaded, and allocates a fresh mesh per
-call. Independent calls may run concurrently. Do not free a handle while
-another thread copies its data. Radius must be finite and strictly between
-zero and one; depth is limited to 1 through 8. Rust panics become a status code;
-invalid pointers and process aborts such as out-of-memory cannot be recovered.
+The original `fidget_mesh_sphere` entry point remains as a simple probe with a
+fixed `[-1, 1]^3` domain. Radius must be finite and strictly between zero and one.
 
-The output has no normals, UVs or materials. Coordinate conventions and winding
-conversion for Unity belong to the later integration. Thin features below the
+Rebuild native libraries when the ABI changes; Unity checks v4 before scheduling
+work. Never free handles while another thread is using them. Rust panics become
+status codes; invalid pointers and process aborts such as out-of-memory cannot
+be recovered. Mesh output has no UVs or materials. Thin features below the
 sampling resolution may be missed; Fidget also permits self-intersections.
 
 ## Builds
@@ -93,8 +107,8 @@ Android ELF files. It runs on relevant pushes to `main` and
 and manual dispatch. Each successful job uploads its own artifact.
 
 The C executable exercises the actual shared-library boundary, checks argument
-errors, verifies finite sphere positions and index bounds, and releases several
-meshes. It checks ABI layout through the public header, rather than calling Rust
+errors, parameter updates, shared shape lifetimes, explicit bounds, finite
+positions, index bounds, and both normal modes. It checks ABI layout through the public header, rather than calling Rust
 functions directly from a Rust test.
 
 ## Scope
