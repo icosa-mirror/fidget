@@ -1,8 +1,15 @@
 {
   "name": "com.icosa.fidget",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "displayName": "Fidget Native Meshing",
-  "description": "Worker-job native meshing directly into Unity writable MeshData.",
+  "description": "Parameterized implicit shapes and worker-job meshing into Unity MeshData.",
   "unity": "6000.3",
-  "license": "MPL-2.0"
+  "license": "MPL-2.0",
+  "samples": [
+    {
+      "displayName": "Examples",
+      "description": "Animated Booleans, interactive parameters, and shared shapes. Assign a URP Lit material; each script builds its shape on startup.",
+      "path": "Samples~/Examples"
+    }
+  ]
 }
