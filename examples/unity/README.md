@@ -2,6 +2,10 @@
 
 Open this directory with **Unity 6000.3.18f1** (Unity 6.3).
 
+The package baseline follows the 3D template shipped with that Editor, including
+its standard tools and Unity's default built-in modules, plus Fidget and Unity
+Pipeline. Package versions respect the Editor's minimum supported versions.
+
 1. Let Package Manager resolve the `com.icosa.fidget` Git dependency. The UPM
    distribution includes the C# integration and native libraries for Windows,
    macOS, Linux, Android and iOS. No Rust build or separate DLL installation is
