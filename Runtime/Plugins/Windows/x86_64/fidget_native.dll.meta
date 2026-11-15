@@ -1,0 +1,27 @@
+fileFormatVersion: 2
+guid: d49e87ffc0ac5966acee9833f9dfb171
+PluginImporter:
+  serializedVersion: 2
+  isPreloaded: 0
+  isOverridable: 0
+  isExplicitlyReferenced: 0
+  validateReferences: 1
+  platformData:
+  - first:
+      Any:
+    second:
+      enabled: 0
+      settings: {}
+  - first:
+      Editor: Editor
+    second:
+      enabled: 1
+      settings:
+        CPU: x86_64
+        OS: Windows
+  - first:
+      Standalone: Win64
+    second:
+      enabled: 1
+      settings:
+        CPU: x86_64

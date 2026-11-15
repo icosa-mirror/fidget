@@ -1,0 +1,15 @@
+ABI: 2
+Target: x86_64-unknown-linux-gnu
+Source commit: fa8689f5204617ab3033fbd3625753265e42b536
+Working tree dirty: False
+rustc 1.95.0 (59807616e 2026-04-14)
+binary: rustc
+commit-hash: 59807616e1fa2540724bfbac14d7976d7e4a3860
+commit-date: 2026-04-14
+host: x86_64-unknown-linux-gnu
+release: 1.95.0
+LLVM version: 22.1.2
+
+Native static libs: 
+Desktop C smoke executed: True
+iOS C probe linked: False
