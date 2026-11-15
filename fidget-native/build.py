@@ -25,7 +25,8 @@ TARGETS = {
 SYMBOLS = (
     "fidget_native_abi_version",
     "fidget_mesh_sphere",
-    "fidget_mesh_get_view",
+    "fidget_mesh_get_counts",
+    "fidget_mesh_copy_to",
     "fidget_mesh_free",
 )
 
@@ -77,7 +78,7 @@ def check_android(library, binaries, env):
     names = {line.split()[-1] for line in exports.splitlines() if line.split()}
     if not set(SYMBOLS).issubset(names):
         raise ValueError("Android library is missing a public C ABI symbol")
-    print("Android ELF: 16 KB LOAD alignment and all four C exports verified", flush=True)
+    print("Android ELF: 16 KB LOAD alignment and all five C exports verified", flush=True)
 
 
 def link_ios_probe(target, library, native_libs, build_dir, env):
@@ -177,7 +178,7 @@ def main():
     commit = capture(["git", "rev-parse", "HEAD"], env).strip()
     dirty = bool(capture(["git", "status", "--porcelain", "--untracked-files=normal"], env).strip())
     (package / "BUILD-INFO.txt").write_text(
-        f"Target: {args.target}\nSource commit: {commit}\nWorking tree dirty: {dirty}\n"
+        f"ABI: 2\nTarget: {args.target}\nSource commit: {commit}\nWorking tree dirty: {dirty}\n"
         f"{rust_version}{ndk_info}\nNative static libs: {native_libs}\n"
         f"Desktop C smoke executed: {args.smoke}\niOS C probe linked: {ios}\n",
         encoding="utf-8",

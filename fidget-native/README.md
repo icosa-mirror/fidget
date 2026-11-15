@@ -8,19 +8,24 @@ The upstream `workspace-hack` dependency still unifies development dependencies
 
 ## C API
 
-See [include/fidget_native.h](include/fidget_native.h) for the ABI and ownership
-contract. `fidget_mesh_sphere(0.6f, 4, &mesh)` generates a sphere in `[-1, 1]^3`.
-`fidget_mesh_get_view` borrows packed XYZ `float` positions and `uint32_t`
-triangle indices. `fidget_mesh_free` releases the handle and both buffers.
-The view uses normal platform C struct alignment; do not apply packed layout.
+ABI v2 is defined in [include/fidget_native.h](include/fidget_native.h).
+`fidget_mesh_sphere(0.6f, 4, &mesh)` generates a sphere in `[-1, 1]^3`.
+`fidget_mesh_get_counts` reports output sizes, then `fidget_mesh_copy_to` writes
+positions and 32-bit indices into caller-owned buffers. Bounds are calculated
+in the same position-copy pass. `fidget_mesh_free` releases the original mesh;
+the caller's copied buffers remain valid. The native handle retains Fidget's
+original mesh, without first allocating separate packed arrays.
+
+This deliberately replaces the phase-1 borrowed-view ABI. Rebuild all native
+libraries when upgrading; Unity checks for ABI v2 before scheduling work.
 
 The probe is synchronous and single-threaded, and allocates a fresh mesh per
 call. Independent calls may run concurrently. Do not free a handle while
-another thread reads its buffers. Radius must be finite and strictly between
+another thread copies its data. Radius must be finite and strictly between
 zero and one; depth is limited to 1 through 8. Rust panics become a status code;
 invalid pointers and process aborts such as out-of-memory cannot be recovered.
 
-The view has no normals, UVs or materials. Coordinate conventions and winding
+The output has no normals, UVs or materials. Coordinate conventions and winding
 conversion for Unity belong to the later integration. Thin features below the
 sampling resolution may be missed; Fidget also permits self-intersections.
 

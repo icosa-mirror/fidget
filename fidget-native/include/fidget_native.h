@@ -10,12 +10,16 @@ extern "C" {
 /* All functions use the platform C calling convention (cdecl on Windows). */
 typedef struct FidgetMesh FidgetMesh;
 
-typedef struct FidgetMeshView {
-    const float *vertices; /* Packed XYZ, vertex_count * 3 floats. */
+/* ABI v2 replaces borrowed packed buffers with caller-owned destinations. */
+typedef struct FidgetMeshCounts {
     uint32_t vertex_count;
-    const uint32_t *indices; /* index_count entries, three per triangle. */
     uint32_t index_count;
-} FidgetMeshView;
+} FidgetMeshCounts;
+
+typedef struct FidgetBounds {
+    float min[3];
+    float max[3];
+} FidgetBounds;
 
 enum FidgetStatus {
     FIDGET_OK = 0,
@@ -34,13 +38,22 @@ uint32_t fidget_native_abi_version(void);
  */
 int32_t fidget_mesh_sphere(float radius, uint32_t depth, FidgetMesh **out_mesh);
 
-/* Borrowed immutable buffers, valid only while mesh remains live.
- * Do not free these buffers separately or modify them.
- * out_view must point to writable storage; a NULL mesh clears the view.
- * Calls on independent meshes may run concurrently. Do not free a mesh while
- * another thread uses its handle or buffers. Counts and indices are uint32_t.
+/* Reads counts without allocating or copying; clears counts on NULL mesh.
+ * counts must point to writable storage. The handle must remain live.
  */
-int32_t fidget_mesh_get_view(const FidgetMesh *mesh, FidgetMeshView *out_view);
+int32_t fidget_mesh_get_counts(const FidgetMesh *mesh, FidgetMeshCounts *counts);
+
+/* Writes directly into caller-owned buffers (e.g. Unity writable MeshData).
+ * vertices: vertex_capacity * 3 writable floats; indices: index_capacity uint32s.
+ * bounds: writable output, computed in the position-copy pass.
+ * No intermediate packing allocation. Buffers must be aligned and non-overlapping.
+ * Invalid arguments leave all outputs untouched. Data pointers may be NULL only
+ * for empty outputs. Empty meshes have zero bounds. Never free the mesh while
+ * copying. Caller buffers remain valid after fidget_mesh_free.
+ */
+int32_t fidget_mesh_copy_to(const FidgetMesh *mesh,
+    float *vertices, uint32_t vertex_capacity,
+    uint32_t *indices, uint32_t index_capacity, FidgetBounds *bounds);
 
 /* NULL is permitted. Double-free and stale handles are invalid. */
 void fidget_mesh_free(FidgetMesh *mesh);
