@@ -6,6 +6,8 @@ use fidget_core::{context::Tree, vm::VmShape};
 use fidget_mesh::{Octree, Settings};
 use std::{panic::catch_unwind, ptr};
 
+mod shape;
+
 const OK: i32 = 0;
 const INVALID_ARGUMENT: i32 = 1;
 const MESH_FAILED: i32 = 2;
@@ -35,7 +37,7 @@ pub struct FidgetBounds {
 /// Version of the C ABI defined by `include/fidget_native.h`.
 #[unsafe(no_mangle)]
 pub extern "C" fn fidget_native_abi_version() -> u32 {
-    2
+    3
 }
 
 /// Meshes a sphere at the origin inside the fixed [-1, 1]^3 domain.

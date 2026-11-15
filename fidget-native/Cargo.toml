@@ -13,4 +13,5 @@ crate-type = ["cdylib", "staticlib"]
 [dependencies]
 fidget-core.workspace = true
 fidget-mesh.workspace = true
+nalgebra.workspace = true
 workspace-hack.workspace = true

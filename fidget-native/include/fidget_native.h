@@ -9,6 +9,22 @@ extern "C" {
 
 /* All functions use the platform C calling convention (cdecl on Windows). */
 typedef struct FidgetMesh FidgetMesh;
+typedef struct FidgetShape FidgetShape;
+typedef struct FidgetMesher FidgetMesher;
+
+/* ABI v3 adds reusable compiled expressions and parameterized meshers. */
+typedef struct FidgetNode {
+    uint32_t opcode, a, b, c, d;
+    float value;
+} FidgetNode;
+
+enum FidgetOpcode {
+    FIDGET_CONSTANT = 0, FIDGET_X = 1, FIDGET_Y = 2, FIDGET_Z = 3,
+    FIDGET_PARAMETER = 4, FIDGET_NEGATE = 5, FIDGET_ABS = 6,
+    FIDGET_SQRT = 7, FIDGET_SQUARE = 8, FIDGET_SIN = 9, FIDGET_COS = 10,
+    FIDGET_ADD = 11, FIDGET_SUBTRACT = 12, FIDGET_MULTIPLY = 13,
+    FIDGET_DIVIDE = 14, FIDGET_MIN = 15, FIDGET_MAX = 16, FIDGET_REMAP = 17
+};
 
 /* ABI v2 replaces borrowed packed buffers with caller-owned destinations. */
 typedef struct FidgetMeshCounts {
@@ -29,6 +45,31 @@ enum FidgetStatus {
 };
 
 uint32_t fidget_native_abi_version(void);
+
+/* Instructions are topologically ordered; the final node is the root.
+ * CONSTANT uses value; PARAMETER uses a as its zero-based parameter index.
+ * Unary/binary operators use a / a,b. REMAP uses a=shape,b=x,c=y,d=z.
+ * Every node reference must refer to an earlier instruction. Limits: 1 million
+ * nodes and 4096 parameters. Inputs are borrowed only for this call.
+ * out_shape is cleared on failure. Free the returned handle exactly once.
+ */
+int32_t fidget_shape_compile(const FidgetNode *nodes, uint32_t count,
+    uint32_t parameter_count, FidgetShape **out_shape);
+void fidget_shape_free(FidgetShape *shape);
+
+/* Meshers retain the compiled shape, so shape may be freed after creation.
+ * Different meshers may execute concurrently. Each mesher is single-caller:
+ * never generate/free it concurrently. No managed callbacks or JIT are used.
+ */
+int32_t fidget_mesher_create(const FidgetShape *shape, FidgetMesher **out_mesher);
+int32_t fidget_mesher_generate(FidgetMesher *mesher, const float *values,
+    uint32_t count, const FidgetBounds *bounds, uint32_t depth, FidgetMesh **out_mesh);
+void fidget_mesher_free(FidgetMesher *mesher);
+
+/* Optional area-weighted smooth normals: capacity counts vertices, not floats.
+ * Output contains three floats per vertex. No additional allocation occurs.
+ */
+int32_t fidget_mesh_write_normals(const FidgetMesh *mesh, float *normals, uint32_t capacity);
 
 /* Synchronous single-threaded probe. Fixed domain [-1, 1]^3.
  * Requires finite 0 < radius < 1 and 1 <= depth <= 8.
