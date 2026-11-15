@@ -18,6 +18,7 @@ namespace Icosa.Fidget
         private MeshFilter _filter;
         private Mesh _previousMesh;
         private bool _requested;
+        private int _scheduledDepth;
 
         /// <summary>Transfers ownership of shape to this component. Use MeshStream directly to share a shape between objects.</summary>
         public void Initialize(CompiledShape shape, MeshSettings settings)
@@ -64,8 +65,13 @@ namespace Icosa.Fidget
         {
             if (Stream == null) return;
             if (Parameters.CaptureBindings()) _requested = true;
+            if (Detail != _scheduledDepth) _requested = true;
             Stream.TryApply();
-            if ((Continuous || _requested) && Stream.TrySchedule(Parameters, Detail, false)) _requested = false;
+            if ((Continuous || _requested) && Stream.TrySchedule(Parameters, Detail, false))
+            {
+                _scheduledDepth = Detail;
+                _requested = false;
+            }
         }
         protected virtual void OnDisable() => StopStream();
         protected virtual void OnDestroy() { StopStream(); _shape?.Dispose(); _shape = null; }
