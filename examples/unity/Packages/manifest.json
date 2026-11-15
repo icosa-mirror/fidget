@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "com.icosa.fidget": "https://github.com/icosa-mirror/fidget.git#upm",
+    "com.unity.modules.imageconversion": "1.0.0"
+  }
+}
