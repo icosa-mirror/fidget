@@ -12,8 +12,8 @@ project includes the usual Unity packages and Unity Pipeline for Editor automati
    cutter radius, travel, speed, and detail on its single shape component.
 4. **InteractiveParameters** has on-screen sliders for the torus's major and tube
    radii. They accept pointer/touch input and regenerate the mesh as values change.
-5. **SharedShapeInstances** reuses one compiled expression for four independent,
-   animated mesh streams.
+5. **SharedShapeInstances** creates four `SharedSphere` components using
+   `CreateSharedInstance`, then animates each component's `Radius` property.
 6. **ChangingSphere** defines a sphere in `Define` and animates its `Radius`
    property. It uses a positions-only
    flat-shaded material.
@@ -22,7 +22,8 @@ All scenes default to detail 6; detail remains adjustable in the Inspector.
 AnimatedBoolean and InteractiveParameters define shapes by deriving from
 `FidgetMesh<T>` and overriding `Define`. Update their C# properties directly; the
 component handles preparation, scheduling, and cleanup. SharedShapeInstances
-illustrates explicit sharing through the advanced stream API.
+uses the same component API and shares a definition explicitly through
+`CreateSharedInstance`.
 
 The three general API examples use ordinary URP Lit and `MeshNormals.Surface`.
 Fidget's expression branches select surface gradients, keeping curved surfaces

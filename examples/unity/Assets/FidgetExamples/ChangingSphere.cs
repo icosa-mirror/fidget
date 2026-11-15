@@ -1,9 +1,10 @@
+using Icosa.Fidget;
 using UnityEngine;
 using UnityEngine.Serialization;
 
-namespace Icosa.Fidget.Samples
+namespace FidgetExamples
 {
-    public sealed class ChangingSphere : FidgetMesh<ChangingSphere>
+    public class ChangingSphere : FidgetMesh<ChangingSphere>
     {
         [FormerlySerializedAs("Radius"), Range(0.01f, 0.9f)] public float BaseRadius = 0.6f;
         [Range(0, 0.3f)] public float Amplitude = 0.15f;

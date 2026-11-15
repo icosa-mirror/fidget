@@ -1,0 +1,7 @@
+{
+  "name": "Icosa.Fidget.Samples",
+  "rootNamespace": "",
+  "references": [
+    "Icosa.Fidget"
+  ]
+}
