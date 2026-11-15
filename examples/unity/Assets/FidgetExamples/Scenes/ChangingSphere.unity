@@ -402,8 +402,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1ff77c3818f65fce8fedb0f60fc96bc2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Icosa.Fidget.Samples.ChangingSphere
+  Continuous: 0
   Detail: 6
-  Radius: 0.6
+  Bounds:
+    m_Center: {x: 0, y: 0, z: 0}
+    m_Extent: {x: 1, y: 1, z: 1}
+  Normals: 0
+  BaseRadius: 0.6
   Amplitude: 0.15
   Speed: 1
 --- !u!1660057539 &9223372036854775807

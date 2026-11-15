@@ -1,40 +1,19 @@
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace Icosa.Fidget.Samples
 {
-    [RequireComponent(typeof(MeshFilter), typeof(MeshRenderer))]
-    public sealed class ChangingSphere : MonoBehaviour
+    public sealed class ChangingSphere : FidgetMesh<ChangingSphere>
     {
-        [Range(1, 8)] public int Detail = 6;
-        [Range(0.01f, 0.9f)] public float Radius = 0.6f;
+        [FormerlySerializedAs("Radius"), Range(0.01f, 0.9f)] public float BaseRadius = 0.6f;
         [Range(0, 0.3f)] public float Amplitude = 0.15f;
         [Min(0)] public float Speed = 1;
+        public float Radius { get; set; } = 0.6f;
 
-        private SphereMeshStream _stream;
-        private MeshFilter _filter;
-        private Mesh _previousMesh;
+        protected override Expression Define(ShapeBuilder<ChangingSphere> shape) =>
+            shape.Sphere(shape.Parameter(sphere => sphere.Radius));
 
-        private void OnEnable()
-        {
-            _filter = GetComponent<MeshFilter>();
-            _previousMesh = _filter.sharedMesh;
-            _stream = new SphereMeshStream();
-            _filter.sharedMesh = _stream.Mesh;
-        }
-
-        private void Update()
-        {
-            _stream.TryApply();
-            float radius = Mathf.Clamp(Radius + Amplitude * Mathf.Sin(Time.time * Speed), 0.01f, 0.99f);
-            _stream.Schedule(radius, Detail);
-        }
-
-        private void OnDisable()
-        {
-            if (_stream == null) return;
-            if (_filter.sharedMesh == _stream.Mesh) _filter.sharedMesh = _previousMesh;
-            _stream.Dispose();
-            _stream = null;
-        }
+        private void Update() =>
+            Radius = Mathf.Clamp(BaseRadius + Amplitude * Mathf.Sin(Time.time * Speed), 0.01f, 0.99f);
     }
 }

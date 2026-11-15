@@ -14,7 +14,8 @@ project includes the usual Unity packages and Unity Pipeline for Editor automati
    radii. They accept pointer/touch input and regenerate the mesh as values change.
 5. **SharedShapeInstances** reuses one compiled expression for four independent,
    animated mesh streams.
-6. **ChangingSphere** is the minimal sphere-stream example, using a positions-only
+6. **ChangingSphere** defines a sphere in `Define` and animates its `Radius`
+   property. It uses a positions-only
    flat-shaded material.
 
 All scenes default to detail 6; detail remains adjustable in the Inspector.

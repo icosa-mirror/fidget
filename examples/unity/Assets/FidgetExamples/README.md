@@ -13,8 +13,8 @@ ensure Quality settings do not override it with a different pipeline.
    alongside URP when importing the samples into another project.
 3. Open Scenes/SharedShapeInstances.unity to see one compiled expression drive
    several objects with independent parameters and mesh streams.
-4. Open Scenes/ChangingSphere.unity for the minimal sphere stream and a
-   positions-only flat-shaded material.
+4. Open Scenes/ChangingSphere.unity for a minimal `FidgetMesh<ChangingSphere>`
+   component that animates its radius, using a positions-only flat-shaded material.
 
 AnimatedBoolean and InteractiveParameters derive from `FidgetMesh<T>`. Each
 component defines its expression in `Define` and exposes ordinary C# properties
