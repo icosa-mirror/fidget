@@ -1,6 +1,6 @@
 ABI: 4
 Target: aarch64-apple-darwin
-Source commit: d358d6a758619af4b7aab142327ed93e432a9432
+Source commit: 129d12df407a925b2580e9e1639a691a25b94d47
 Working tree dirty: False
 rustc 1.95.0 (59807616e 2026-04-14)
 binary: rustc

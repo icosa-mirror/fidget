@@ -7,8 +7,10 @@ ensure Quality settings do not override it with a different pipeline.
 
 1. Open Scenes/AnimatedBoolean.unity and press Play. Change the cutter radius,
    travel, speed, and FidgetMesh detail in the Inspector.
-2. Open Scenes/InteractiveParameters.unity and adjust the torus radii in Play
-   mode. The script also exposes setters suitable for UI Slider events.
+2. Open Scenes/InteractiveParameters.unity and use the on-screen major-radius and
+   tube-radius sliders. Their persistent events update the shape in Play mode.
+   The controls use Unity UI and the Input System UI module; install those packages
+   alongside URP when importing the samples into another project.
 3. Open Scenes/SharedShapeInstances.unity to see one compiled expression drive
    several objects with independent parameters and mesh streams.
 4. Open Scenes/ChangingSphere.unity for the minimal sphere stream and a

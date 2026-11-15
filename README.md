@@ -146,7 +146,8 @@ Invalid arguments and native failures produce descriptive managed exceptions.
 3. **Shared Shape Instances**: one compiled shape, independent parameters and
    jobs for multiple objects. Shows explicit lifetime management with `MeshStream`.
 
-`ChangingSphere` and `SphereMeshStream` remain available for the original example.
+`ChangingSphere` lives with the imported example scripts. It demonstrates the
+lower-level `SphereMeshStream` API, which remains part of the runtime package.
 
 ## Data path
 

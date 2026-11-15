@@ -1,6 +1,6 @@
 using UnityEngine;
 
-namespace Icosa.Fidget
+namespace Icosa.Fidget.Samples
 {
     [RequireComponent(typeof(MeshFilter), typeof(MeshRenderer))]
     public sealed class ChangingSphere : MonoBehaviour
