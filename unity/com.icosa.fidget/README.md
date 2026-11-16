@@ -147,11 +147,23 @@ freeing resources a job still uses. An overload accepts a per-request depth.
 6. `MeshNormals.Surface` evaluates Fidget's expression gradients using the branch
    trace selected at each triangle's centroid. Different corner normals get
    separate render vertices; geometric positions and triangles are unchanged.
-   There is no crease-angle threshold. This is recovered face classification,
+   Singular corner gradients (for example cone tips) use the selected face's
+   interior gradient; if that is singular too, it uses finite differences of
+   the selected branch. There is no crease-angle threshold. This is recovered face classification,
    not provenance exported by the mesher: a triangle spanning a branch boundary
    cannot represent that transition exactly. It adds expression evaluation,
    normal storage, and potentially more render vertices. The rounded-box Boolean
    example has been visually reviewed; this is not a universal hard-edge guarantee.
+
+### Mercury hg_sdf
+
+[Mercury hg_sdf](HgSdf.md) provides the complete primitive, domain, and combination
+function set as expression builders. Use `HgSdf.Point(shape)` for coordinates,
+then call the original functions such as `fCone`, `fCapsule`, `fBox`,
+`fOpUnionRound`, and `pModPolar`. Package 0.5.0 requires ABI 6 native libraries.
+The **Mercury SDF** sample scene uses six small `FidgetMesh<T>` components with
+editable Inspector properties. Mercury's copyright and MIT notice are included
+in [ThirdPartyNotices.md](ThirdPartyNotices.md).
 
 ### Standard shape library
 
@@ -197,7 +209,7 @@ Conventions and differences from the Rust structs:
   field values across cell boundaries to avoid discontinuities and use explicit
   meshing bounds to select a finite region.
 
-These APIs require **ABI 5** native libraries. Rebuild/package matching native
+The current package requires **ABI 6** native libraries. Rebuild/package matching native
 libraries before using updated C# sources with an older published package.
 The **Shape Library** sample scene uses four small `FidgetMesh<T>` components to show
 extrusion, blending, lofting, revolution,

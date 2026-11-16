@@ -7,8 +7,8 @@
     <OutputPath>../../target/shape-checks/bin/</OutputPath>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="ShapeLibraryChecks.cs" />
-    <Compile Include="../com.icosa.fidget/Runtime/ShapeBuilder.cs;../com.icosa.fidget/Runtime/ShapeLibrary.cs;../com.icosa.fidget/Runtime/TypedShape.cs;../com.icosa.fidget/Runtime/CompiledShape.cs;../com.icosa.fidget/Runtime/Native.cs" />
+    <Compile Include="ShapeLibraryChecks.cs;HgSdfChecks.cs;hg-sdf/*.cs" />
+    <Compile Include="../com.icosa.fidget/Runtime/HgSdf*.cs;../com.icosa.fidget/Runtime/ExpressionVectors.cs;../com.icosa.fidget/Runtime/ShapeBuilder.cs;../com.icosa.fidget/Runtime/ShapeLibrary.cs;../com.icosa.fidget/Runtime/TypedShape.cs;../com.icosa.fidget/Runtime/CompiledShape.cs;../com.icosa.fidget/Runtime/Native.cs" />
     <Reference Include="UnityEngine.CoreModule"><HintPath>$(UnityManagedPath)/UnityEngine/UnityEngine.CoreModule.dll</HintPath></Reference>
   </ItemGroup>
 </Project>

@@ -6,13 +6,22 @@ using UnityEngine;
 
 // Evaluate the emitted graph independently of the native compiler. This checks
 // coordinate mappings and parameter changes at known interior/exterior points.
-static class ShapeLibraryChecks
+static partial class ShapeLibraryChecks
 {
     static float Value(Expression e, Vector3 p, float parameter = 0)
     {
         if (e.Owner == null) return e.Constant;
         var nodes = (List<Native.Node>)typeof(ShapeBuilder).GetField("_nodes", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(e.Owner);
+        var cache = new Dictionary<(uint, float, float, float), float>();
         float Eval(uint i, Vector3 at)
+        {
+            var key = (i, at.x, at.y, at.z);
+            if (cache.TryGetValue(key, out float value)) return value;
+            value = Compute(i, at);
+            cache[key] = value;
+            return value;
+        }
+        float Compute(uint i, Vector3 at)
         {
             var n = nodes[(int)i];
             if (n.Opcode == 0) return n.Value;
@@ -20,6 +29,10 @@ static class ShapeLibraryChecks
             if (n.Opcode == 2) return at.y;
             if (n.Opcode == 3) return at.z;
             if (n.Opcode == 4) return parameter;
+            if (n.Opcode == 19) return MathF.Floor(Eval(n.A, at));
+            if (n.Opcode == 24) return Eval(n.A, at) == 0 ? 1 : 0;
+            if (n.Opcode == 25) return MathF.Exp(Eval(n.A, at));
+            if (n.Opcode == 26) return MathF.Log(Eval(n.A, at));
             if (n.Opcode == 17) return Eval(n.A, new Vector3(Eval(n.B, at), Eval(n.C, at), Eval(n.D, at)));
             float a = Eval(n.A, at);
             if (n.Opcode == 5) return -a;
@@ -38,6 +51,10 @@ static class ShapeLibraryChecks
                 case 15: return MathF.Min(a,b);
                 case 16: return MathF.Max(a,b);
                 case 18: return a - MathF.Floor(a / MathF.Abs(b)) * MathF.Abs(b);
+                case 20: return MathF.Atan2(a,b);
+                case 21: return float.IsNaN(a) || float.IsNaN(b) ? float.NaN : a < b ? -1 : a > b ? 1 : 0;
+                case 22: return a == 0 ? a : b;
+                case 23: return a != 0 ? a : b;
                 default: throw new Exception("Unexpected opcode");
             }
         }
@@ -110,6 +127,7 @@ static class ShapeLibraryChecks
         Reject(() => s.ExtrudeZ(new ShapeBuilder().Circle(1), -1, 1));
         // Also exercise the native graph compiler with the actual emitted nodes.
         using (s.Compile(s.Union(s.ExtrudeZ(profile, -1, 1), repeat, loft))) { }
+        HgChecks();
         Console.WriteLine($"PASS: {count} shape/parameter/ownership checks and native graph compilation");
     }
 }

@@ -22,7 +22,8 @@ Applications should normally use the [Unity API](../unity/com.icosa.fidget/READM
    internal worker threads.
 4. Optionally call `fidget_mesh_prepare_surface_normals` before querying counts.
    It selects a branch trace at each triangle centroid and evaluates that
-   branch's gradients at the corners. Differing normals split render vertices
+   branch's gradients at the corners. Singular corners use the face-interior
+   gradient, falling back to numerical derivatives if necessary. Differing normals split render vertices
    without moving geometry; no crease-angle threshold is used. A triangle
    spanning a branch boundary cannot represent that transition exactly.
    Preparation must use the mesher's most recent generated mesh and parameters.
