@@ -60,9 +60,12 @@ impl SurfaceWorkspace {
                     Some(trace) => shape.ez_simplify(trace).ok()?,
                     None => shape.clone(),
                 };
-                branches.insert(key.clone(), branch.ez_grad_slice_tape());
+                branches.insert(
+                    key.clone(),
+                    (branch.ez_grad_slice_tape(), branch.ez_point_tape()),
+                );
             }
-            let branch = &branches[&key];
+            let (branch, point_branch) = &branches[&key];
             let points = face.map(|i| mesh.vertices[i]);
             let xs = points.map(|p| Grad::new(p.x, 1.0, 0.0, 0.0));
             let ys = points.map(|p| Grad::new(p.y, 0.0, 1.0, 0.0));
@@ -77,15 +80,71 @@ impl SurfaceWorkspace {
                     values,
                 )
                 .ok()?;
+            // Release the evaluator borrow before a possible face-interior query.
+            let gradients: [Grad; 3] = gradients.try_into().ok()?;
+            let mut interior_normal = None;
             let mut triangle = Vector3::zeros();
             for corner in 0..3 {
                 let g = gradients[corner];
                 let mut normal = Vector3::new(g.dx, g.dy, g.dz);
                 let length = normal.norm();
                 if !length.is_finite() || length == 0.0 {
-                    return None;
+                    // Cone tips and capsule poles have no unique derivative (or
+                    // contain 0 * NaN from an inactive distance term). Use the
+                    // selected face's interior derivative as the corner limit.
+                    if interior_normal.is_none() {
+                        let xs = [Grad::new(centroid.x, 1.0, 0.0, 0.0)];
+                        let ys = [Grad::new(centroid.y, 0.0, 1.0, 0.0)];
+                        let zs = [Grad::new(centroid.z, 0.0, 0.0, 1.0)];
+                        let g = self
+                            .gradient
+                            .eval_with_vars(branch, &xs, &ys, &zs, values)
+                            .ok()?[0];
+                        let mut n = Vector3::new(g.dx, g.dy, g.dz);
+                        let mut len = n.norm();
+                        if !len.is_finite() || len == 0.0 {
+                            // Dual contouring may collapse a face to a pole. Its
+                            // centroid is singular too; sample the selected
+                            // branch symmetrically to recover a finite normal.
+                            let step = centroid.abs().max().max(1.0) * 1e-4;
+                            for axis in 0..3 {
+                                let mut hi = centroid;
+                                let mut lo = centroid;
+                                hi[axis] += step;
+                                lo[axis] -= step;
+                                let (a, _) = self
+                                    .point
+                                    .eval_with_vars(
+                                        point_branch,
+                                        hi.x,
+                                        hi.y,
+                                        hi.z,
+                                        values,
+                                    )
+                                    .ok()?;
+                                let (b, _) = self
+                                    .point
+                                    .eval_with_vars(
+                                        point_branch,
+                                        lo.x,
+                                        lo.y,
+                                        lo.z,
+                                        values,
+                                    )
+                                    .ok()?;
+                                n[axis] = (a - b) / (2.0 * step);
+                            }
+                            len = n.norm();
+                            if !len.is_finite() || len == 0.0 {
+                                return None;
+                            }
+                        }
+                        interior_normal = Some(n / len);
+                    }
+                    normal = interior_normal?;
+                } else {
+                    normal /= length;
                 }
-                normal /= length;
                 // Treat signed zeros as equal; no angular/position tolerance is used.
                 for n in normal.iter_mut() {
                     if *n == 0.0 {
@@ -230,6 +289,39 @@ mod tests {
                 n.dot(&(*p - Vector3::new(0.2, -0.1, 0.0)).normalize())
                     > 0.99999
             );
+        }
+    }
+    #[test]
+    fn capsule_poles_use_the_face_interior_gradient() {
+        // Mercury's exact mix formula has a 0 * undefined radial derivative
+        // at the poles. The field and its face-interior gradients are valid.
+        let (x, y, z) = Tree::axes();
+        let radial = (x.square() + z.square()).sqrt() - 0.22;
+        let cap =
+            (x.square() + (y.abs() - 0.35).square() + z.square()).sqrt() - 0.22;
+        let t = Tree::from(0.35).compare(y.abs()).max(0.0).not();
+        let shape = VmShape::from(radial * (1.0 - t.clone()) + cap * t);
+        let values = ShapeVars::new();
+        let input = Octree::build(
+            &shape.bind(&values).unwrap(),
+            &Settings {
+                depth: 6,
+                threads: None,
+                world_to_model: nalgebra::Matrix4::new_scaling(1.6),
+                ..Default::default()
+            },
+        )
+        .unwrap()
+        .walk_dual();
+        let triangles = input.triangles.len();
+        let (output, normals) = SurfaceWorkspace::default()
+            .prepare(&shape, &values, input)
+            .unwrap();
+        assert_eq!(triangles, output.triangles.len());
+        assert!(!normals.is_empty());
+        for n in normals {
+            assert!(n.iter().all(|v| v.is_finite()));
+            assert!((n.norm() - 1.0).abs() < 1e-5);
         }
     }
 }

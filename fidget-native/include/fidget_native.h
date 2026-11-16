@@ -78,6 +78,7 @@ int32_t fidget_mesh_write_normals(const FidgetMesh *mesh, float *normals, uint32
  * centroid, then evaluates that branch's gradient at its corners. Vertices with
  * different normals are split, without changing geometry. No crease threshold.
  * This is recovered face classification, not mesh-exported surface provenance.
+ * Singular corner gradients use the selected face-interior gradient.
  * Call before querying counts; then write_normals copies the prepared normals.
  * The mesh must come from this mesher's most recent generate call. On failure,
  * free the mesh; it has been consumed. No concurrent use of either handle.
