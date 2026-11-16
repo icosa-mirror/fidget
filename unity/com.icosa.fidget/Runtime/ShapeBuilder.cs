@@ -25,7 +25,11 @@ namespace Icosa.Fidget
                 case 13: return a.Constant * b.Constant;
                 case 14: return a.Constant / b.Constant;
                 case 15: return Mathf.Min(a.Constant, b.Constant);
-                default: return Mathf.Max(a.Constant, b.Constant);
+                case 16: return Mathf.Max(a.Constant, b.Constant);
+                // Match Fidget's rem_euclid, including negative dividends/divisors.
+                default:
+                    float remainder = a.Constant % b.Constant;
+                    return remainder < 0 ? remainder + Mathf.Abs(b.Constant) : remainder;
             }
         }
         private Expression Unary(uint op)
@@ -53,6 +57,8 @@ namespace Icosa.Fidget
         public Expression Cos() => Unary(10);
         public Expression Min(Expression other) => Binary(15, this, other);
         public Expression Max(Expression other) => Binary(16, this, other);
+        /// <summary>Least non-negative remainder, matching Fidget Euclidean modulo.</summary>
+        public Expression Modulo(Expression other) => Binary(18, this, other);
     }
 
     /// <summary>A typed parameter key. Resolve it once; set its value without string lookup per frame.</summary>
@@ -70,7 +76,7 @@ namespace Icosa.Fidget
     }
 
     /// <summary>Build once on the main thread, then compile and update parameter values without rebuilding.</summary>
-    public class ShapeBuilder
+    public partial class ShapeBuilder
     {
         private readonly List<Native.Node> _nodes = new List<Native.Node>();
         private readonly List<float> _defaults = new List<float>();

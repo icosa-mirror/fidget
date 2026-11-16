@@ -60,6 +60,7 @@ fn compile(nodes: &[FidgetNode], parameter_count: u32) -> Option<FidgetShape> {
             15 => at(n.a)?.min(at(n.b)?),
             16 => at(n.a)?.max(at(n.b)?),
             17 => at(n.a)?.remap_xyz(at(n.b)?, at(n.c)?, at(n.d)?),
+            18 => at(n.a)?.modulo(at(n.b)?),
             _ => return None,
         };
         trees.push(t);

@@ -65,12 +65,55 @@ static int parameterized_shape(void) {
     return 0;
 }
 
+/* Repeat a sphere every 1.2 units along X. Negative X must wrap as well. */
+static int repeated_shape(void) {
+    FidgetNode nodes[] = {
+        {FIDGET_X,0,0,0,0,0}, {FIDGET_Y,0,0,0,0,0}, {FIDGET_Z,0,0,0,0,0},
+        {FIDGET_CONSTANT,0,0,0,0,0.6f}, {FIDGET_CONSTANT,0,0,0,0,1.2f},
+        {FIDGET_ADD,0,3,0,0,0}, {FIDGET_MODULO,5,4,0,0,0},
+        {FIDGET_SUBTRACT,6,3,0,0,0}, {FIDGET_SQUARE,7,0,0,0,0},
+        {FIDGET_SQUARE,1,0,0,0,0}, {FIDGET_SQUARE,2,0,0,0,0},
+        {FIDGET_ADD,8,9,0,0,0}, {FIDGET_ADD,11,10,0,0,0},
+        {FIDGET_SQRT,12,0,0,0,0}, {FIDGET_CONSTANT,0,0,0,0,0.25f},
+        {FIDGET_SUBTRACT,13,14,0,0,0}
+    };
+    FidgetShape *shape = NULL;
+    FidgetMesher *mesher = NULL;
+    FidgetMesh *mesh = NULL;
+    FidgetBounds domain = {{-1.7f,-0.5f,-0.5f},{1.7f,0.5f,0.5f}}, bounds;
+    FidgetMeshCounts counts;
+    CHECK(fidget_shape_compile(nodes, 16, 0, &shape) == FIDGET_OK);
+    CHECK(fidget_mesher_create(shape, &mesher) == FIDGET_OK);
+    fidget_shape_free(shape);
+    CHECK(fidget_mesher_generate(mesher, NULL, 0, &domain, 6, &mesh) == FIDGET_OK);
+    CHECK(fidget_mesh_get_counts(mesh, &counts) == FIDGET_OK);
+    CHECK(counts.vertex_count > 0 && counts.index_count > 0);
+    float *vertices = malloc(counts.vertex_count * 3 * sizeof(float));
+    uint32_t *indices = malloc(counts.index_count * sizeof(uint32_t));
+    CHECK(vertices && indices);
+    CHECK(fidget_mesh_copy_to(mesh, vertices, counts.vertex_count, indices, counts.index_count, &bounds) == FIDGET_OK);
+    int groups[3] = {0};
+    for (uint32_t i = 0; i < counts.vertex_count; ++i) {
+        float *v = vertices + 3*i;
+        int group = (int)roundf(v[0] / 1.2f) + 1;
+        CHECK(group >= 0 && group < 3);
+        groups[group]++;
+        float x = v[0] - (group-1)*1.2f;
+        CHECK(fabsf(sqrtf(x*x + v[1]*v[1] + v[2]*v[2]) - 0.25f) < 0.05f);
+    }
+    CHECK(groups[0] && groups[1] && groups[2]);
+    free(vertices); free(indices);
+    fidget_mesh_free(mesh); fidget_mesher_free(mesher);
+    return 0;
+}
+
 int main(void) {
     CHECK(parameterized_shape() == 0);
+    CHECK(repeated_shape() == 0);
     FidgetMesh *mesh = NULL;
     FidgetMeshCounts counts = {0};
     FidgetBounds bounds = {0};
-    CHECK(fidget_native_abi_version() == 4);
+    CHECK(fidget_native_abi_version() == 5);
     CHECK(fidget_mesh_sphere(0.6f, 4, NULL) == FIDGET_INVALID_ARGUMENT);
     CHECK(fidget_mesh_sphere(NAN, 4, &mesh) == FIDGET_INVALID_ARGUMENT);
     CHECK(mesh == NULL);

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Assemble a local UPM package from source and ABI-v4 native build artifacts."""
+"""Assemble a local UPM package from source and ABI-v5 native build artifacts."""
 import argparse
 from pathlib import Path
 import shutil
@@ -71,8 +71,8 @@ def main():
         if not source.is_dir():
             source = args.artifacts / f"fidget-native-{target}"
         info = (source / "BUILD-INFO.txt").read_text()
-        if "ABI: 4\n" not in info:
-            parser.error(f"{target} needs rebuilt ABI-v4 artifacts; phase-1 binaries are incompatible")
+        if "ABI: 5\n" not in info:
+            parser.error(f"{target} needs rebuilt ABI-v5 artifacts; phase-1 binaries are incompatible")
         if not (source / PLATFORMS[target][1]).is_file():
             parser.error(f"Missing library for {target}")
         sources.append((target, source))
