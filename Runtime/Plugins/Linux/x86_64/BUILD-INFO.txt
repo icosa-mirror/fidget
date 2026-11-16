@@ -1,6 +1,6 @@
-ABI: 4
+ABI: 5
 Target: x86_64-unknown-linux-gnu
-Source commit: 10924a28ddd4a0c599f797eb55b22aac78f943e6
+Source commit: 657ba31885276d0c8b7dc510a2cf9527acd8a1c9
 Working tree dirty: False
 rustc 1.95.0 (59807616e 2026-04-14)
 binary: rustc

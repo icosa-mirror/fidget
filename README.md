@@ -153,6 +153,56 @@ freeing resources a job still uses. An overload accepts a per-request depth.
    normal storage, and potentially more render vertices. The rounded-box Boolean
    example has been visually reviewed; this is not a universal hard-edge guarantee.
 
+### Standard shape library
+
+The builder also exposes `Circle`, `Rectangle`, centered `Sphere`, corner-based
+`Box(lower, upper)`, `Blend`, `Inverse`, `Difference`, multi-input `Union` and
+`Intersection`, `Move`, `Scale`, `ScaleUniform`, `Reflect` / `ReflectX` / `ReflectY`
+/ `ReflectZ` / `ReflectXY`, arbitrary-axis `Rotate`, `RotateX`, `RotateZ`,
+`RevolveY`, `ExtrudeZ`, `LoftZ`, and `RepeatX`. These methods build expressions in
+C#; no Rust scripting or separate `fidget-shapes` installation is required.
+They work on both `ShapeBuilder` and `ShapeBuilder<T>`.
+
+```csharp
+protected override Expression Define(ShapeBuilder<MyShape> s)
+{
+    var radius = s.Parameter(mesh => mesh.Radius);
+    var profile = s.Circle(radius);
+    var solid = s.ExtrudeZ(profile, -0.3f, 0.3f);
+    return s.Blend(solid, s.Translate(s.Sphere(0.4f), 0.4f, 0, 0), 0.15f);
+}
+```
+
+Conventions and differences from the Rust structs:
+
+- All rotation methods use **radians**, including the existing `RotateY`.
+  Multiply degrees by `Mathf.Deg2Rad`. Rotations accept a fixed axis/center and
+  expression-valued angle; scaling, reflection offsets, extrusion/loft limits,
+  blend radius, and repetition spacing can also use bound parameters.
+- `Box(halfExtents)` remains available; `Box(lower, upper)` uses corners.
+  `Circle(center, radius)` uses XY, and `Sphere(center, radius)` uses XYZ.
+- `RevolveY` maps an XY profile to `(sqrt(X² + Z²) - offset, Y, 0)`.
+  A circle centered at the origin with a positive radial offset creates a torus.
+  This uses the geometric Y axis; the current Rust helper's coordinate mapping
+  differs. `ExtrudeZ` and `LoftZ` sample their profiles at Z = 0.
+- `Reflect` normalizes its supplied normal; offset is measured along that unit
+  normal. `ReflectXY` reflects across X = Y at offset zero.
+- Multi-input `Union` and `Intersection` require at least one input. Unlike the
+  Rust empty-list convention, they do not emit infinite constants.
+- Keep scale factors nonzero, blend/repetition radii positive, and loft upper
+  greater than lower. Constant non-positive blend radius falls back to union.
+  Scale remaps coordinates without correcting field magnitudes, as in Rust.
+- `RepeatX` repeats every `2 * radius`, using Euclidean modulo, so negative X
+  wraps correctly. Its offset follows the Rust cell-mapping convention. Match
+  field values across cell boundaries to avoid discontinuities and use explicit
+  meshing bounds to select a finite region.
+
+These APIs require **ABI 5** native libraries. Rebuild/package matching native
+libraries before using updated C# sources with an older published package.
+The **Shape Library** sample scene uses four small `FidgetMesh<T>` components to show
+extrusion, blending, lofting, revolution,
+reflection, scaling, rotation, and repetition with editable Inspector properties.
+
 Parameter values must be finite; applications must also keep expressions valid
 (e.g. avoid division by zero and negative square roots). Bounds, depth, graph
 references, and parameter ownership are checked before native work where possible.
