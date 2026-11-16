@@ -185,7 +185,7 @@ def main():
     commit = capture(["git", "rev-parse", "HEAD"], env).strip()
     dirty = bool(capture(["git", "status", "--porcelain", "--untracked-files=normal"], env).strip())
     (package / "BUILD-INFO.txt").write_text(
-        f"ABI: 5\nTarget: {args.target}\nSource commit: {commit}\nWorking tree dirty: {dirty}\n"
+        f"ABI: 6\nTarget: {args.target}\nSource commit: {commit}\nWorking tree dirty: {dirty}\n"
         f"{rust_version}{ndk_info}\nNative static libs: {native_libs}\n"
         f"Desktop C smoke executed: {args.smoke}\niOS C probe linked: {ios}\n",
         encoding="utf-8",

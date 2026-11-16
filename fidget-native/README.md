@@ -8,7 +8,7 @@ but those are not used to generate these meshes.
 
 ## C API
 
-ABI **v5** is defined in [include/fidget_native.h](include/fidget_native.h).
+ABI **v6** is defined in [include/fidget_native.h](include/fidget_native.h).
 Applications should normally use the [Unity API](../unity/com.icosa.fidget/README.md).
 
 1. `fidget_shape_compile` compiles a topologically ordered expression graph with
@@ -37,7 +37,7 @@ Applications should normally use the [Unity API](../unity/com.icosa.fidget/READM
 The original `fidget_mesh_sphere` entry point remains as a simple probe with a
 fixed `[-1, 1]^3` domain. Radius must be finite and strictly between zero and one.
 
-Rebuild native libraries when the ABI changes; Unity checks v5 before scheduling
+Rebuild native libraries when the ABI changes; Unity checks v6 before scheduling
 work. Never free handles while another thread is using them. Rust panics become
 status codes; invalid pointers and process aborts such as out-of-memory cannot
 be recovered. Mesh output has no UVs or materials. Thin features below the

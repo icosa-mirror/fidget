@@ -12,7 +12,7 @@ typedef struct FidgetMesh FidgetMesh;
 typedef struct FidgetShape FidgetShape;
 typedef struct FidgetMesher FidgetMesher;
 
-/* ABI v5 adds Euclidean modulo for coordinate repetition. */
+/* ABI v6 adds expression math and conditionals for hg_sdf. */
 typedef struct FidgetNode {
     uint32_t opcode, a, b, c, d;
     float value;
@@ -24,7 +24,9 @@ enum FidgetOpcode {
     FIDGET_SQRT = 7, FIDGET_SQUARE = 8, FIDGET_SIN = 9, FIDGET_COS = 10,
     FIDGET_ADD = 11, FIDGET_SUBTRACT = 12, FIDGET_MULTIPLY = 13,
     FIDGET_DIVIDE = 14, FIDGET_MIN = 15, FIDGET_MAX = 16, FIDGET_REMAP = 17,
-    FIDGET_MODULO = 18
+    FIDGET_MODULO = 18, FIDGET_FLOOR = 19, FIDGET_ATAN2 = 20,
+    FIDGET_COMPARE = 21, FIDGET_AND = 22, FIDGET_OR = 23,
+    FIDGET_NOT = 24, FIDGET_EXP = 25, FIDGET_LN = 26
 };
 
 /* ABI v2 replaces borrowed packed buffers with caller-owned destinations. */

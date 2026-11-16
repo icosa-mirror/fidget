@@ -113,7 +113,7 @@ int main(void) {
     FidgetMesh *mesh = NULL;
     FidgetMeshCounts counts = {0};
     FidgetBounds bounds = {0};
-    CHECK(fidget_native_abi_version() == 5);
+    CHECK(fidget_native_abi_version() == 6);
     CHECK(fidget_mesh_sphere(0.6f, 4, NULL) == FIDGET_INVALID_ARGUMENT);
     CHECK(fidget_mesh_sphere(NAN, 4, &mesh) == FIDGET_INVALID_ARGUMENT);
     CHECK(mesh == NULL);

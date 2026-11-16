@@ -61,6 +61,14 @@ fn compile(nodes: &[FidgetNode], parameter_count: u32) -> Option<FidgetShape> {
             16 => at(n.a)?.max(at(n.b)?),
             17 => at(n.a)?.remap_xyz(at(n.b)?, at(n.c)?, at(n.d)?),
             18 => at(n.a)?.modulo(at(n.b)?),
+            19 => at(n.a)?.floor(),
+            20 => at(n.a)?.atan2(at(n.b)?),
+            21 => at(n.a)?.compare(at(n.b)?),
+            22 => at(n.a)?.and(at(n.b)?),
+            23 => at(n.a)?.or(at(n.b)?),
+            24 => at(n.a)?.not(),
+            25 => at(n.a)?.exp(),
+            26 => at(n.a)?.ln(),
             _ => return None,
         };
         trees.push(t);
@@ -320,4 +328,71 @@ pub unsafe extern "C" fn fidget_mesh_write_normals(
         n.copy_from_slice(normal.as_slice());
     }
     OK
+}
+
+#[cfg(test)]
+mod mercury_tests {
+    use super::*;
+    use fidget_core::shape::EzShape;
+
+    fn node(opcode: u32, a: u32, b: u32) -> FidgetNode {
+        FidgetNode {
+            opcode,
+            a,
+            b,
+            c: 0,
+            d: 0,
+            value: 0.0,
+        }
+    }
+
+    #[test]
+    fn mercury_opcodes_evaluate_in_the_vm() {
+        for (op, x, y, expected) in [
+            (19, -1.25_f32, 0.0_f32, -2.0_f32),
+            (20, 1.0, 0.0, std::f32::consts::FRAC_PI_2),
+            (21, -1.0, 0.0, -1.0),
+            (22, 0.0, 2.0, 0.0),
+            (22, -1.0, 2.0, 2.0),
+            (23, 0.0, 2.0, 2.0),
+            (23, -1.0, 2.0, -1.0),
+            (24, 0.0, 0.0, 1.0),
+            (24, -1.0, 0.0, 0.0),
+            (25, 0.0, 0.0, 1.0),
+            (26, 1.0, 0.0, 0.0),
+        ] {
+            let shape =
+                compile(&[node(1, 0, 0), node(2, 0, 0), node(op, 0, 1)], 0)
+                    .unwrap();
+            let tape = shape.0.shape.ez_point_tape();
+            let (value, _) = VmShape::new_point_eval()
+                .eval_with_vars(&tape, x, y, 0.0, &ShapeVars::<f32>::new())
+                .unwrap();
+            assert!(
+                (value - expected).abs() < 1e-6,
+                "opcode {op}: {value} != {expected}"
+            );
+        }
+    }
+
+    #[test]
+    fn conditional_ignores_nan_in_an_unselected_branch() {
+        // x AND ln(y): at x=0, y=-1 the result must be zero, not NaN.
+        let shape = compile(
+            &[node(1, 0, 0), node(2, 0, 0), node(26, 1, 0), node(22, 0, 2)],
+            0,
+        )
+        .unwrap();
+        let tape = shape.0.shape.ez_point_tape();
+        let (value, _) = VmShape::new_point_eval()
+            .eval_with_vars(
+                &tape,
+                0.0_f32,
+                -1.0_f32,
+                0.0_f32,
+                &ShapeVars::<f32>::new(),
+            )
+            .unwrap();
+        assert_eq!(value, 0.0);
+    }
 }
