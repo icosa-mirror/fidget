@@ -33,6 +33,8 @@ namespace Icosa.Fidget
         public Expression3(Expression x, Expression y, Expression z) { this.x = x; this.y = y; this.z = z; }
         public Expression3(Expression value) : this(value, value, value) { }
         public static implicit operator Expression3(Vector3 value) => new Expression3(value.x, value.y, value.z);
+        public Expression3 xyz { get => this; set { x = value.x; y = value.y; z = value.z; } }
+        public Expression3 zxy { get => new Expression3(z, x, y); set { z = value.x; x = value.y; y = value.z; } }
         public Expression2 xy { get => new Expression2(x, y); set { x = value.x; y = value.y; } }
         public Expression2 xz { get => new Expression2(x, z); set { x = value.x; z = value.y; } }
         public Expression2 zx { get => new Expression2(z, x); set { z = value.x; x = value.y; } }
@@ -64,6 +66,9 @@ namespace Icosa.Fidget
         public Expression4(Expression x, Expression y, Expression z, Expression w) { this.x = x; this.y = y; this.z = z; this.w = w; }
         public Expression4(Expression value) : this(value, value, value, value) { }
         public static implicit operator Expression4(Vector4 value) => new Expression4(value.x, value.y, value.z, value.w);
+        public Expression2 xy { get => new Expression2(x, y); set { x = value.x; y = value.y; } }
+        public Expression2 yx { get => new Expression2(y, x); set { y = value.x; x = value.y; } }
+        public Expression2 zw { get => new Expression2(z, w); set { z = value.x; w = value.y; } }
         public static Expression4 operator -(Expression4 a) => new Expression4(-a.x, -a.y, -a.z, -a.w);
         public static Expression4 operator +(Expression4 a, Expression4 b) => new Expression4(a.x + b.x, a.y + b.y, a.z + b.z, a.w + b.w);
         public static Expression4 operator +(Expression4 a, Expression b) => new Expression4(a.x + b, a.y + b, a.z + b, a.w + b);

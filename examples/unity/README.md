@@ -21,9 +21,16 @@ project includes the usual Unity packages and Unity Pipeline for Editor automati
 The new **ShapeLibrary** scene demonstrates the standard library through four
 small components: `ExtrudedBlend`, `LoftedProfile`, `RevolvedProfile`, and
 `RepeatedShape`. Each derives from `FidgetMesh<T>` and exposes Inspector properties,
-just like AnimatedBoolean. The pinned package includes version 0.4.0 / ABI 5,
-so all four examples are available. Their assemblies are skipped when imported into a project using an
+just like AnimatedBoolean. The pinned package includes version 0.5.0 / ABI 6,
+so all four examples and the Mercury library are available. Their assemblies are skipped when imported into a project using an
 older package version.
+
+
+**MercurySdf** adds six focused components for cones and capsules, rounded and
+chamfered joins, columns, stairs, and polar repetition. The reusable `HgSdf` API,
+expression vectors, and standard shape library all live in the UPM package's
+Runtime folder. Samples only contain example definitions and scene tooling.
+Mercury attribution and its MIT notice ship in the package's `ThirdPartyNotices.md`.
 
 For local development, build and assemble a complete package, then temporarily
 install that package directory through Package Manager:
@@ -92,3 +99,9 @@ output, bound parameter updates, finite vertices within bounds, and a rendered
 preview. These checks cover both the locally assembled package and the published
 ABI 5 package pinned by this project. Reproduce with
 `FidgetExamples.Editor.ShapeLibraryValidation.Run()` through Unity CLI eval.
+
+The Mercury port is checked against the original GLSL with 81,534 numeric
+comparisons covering all 74 exported overloads and both odd/even repetition
+counts. On macOS ARM64 / Unity 6000.6.0f1, all six Mercury scene meshes passed
+surface-normal, bounds, parameter-update, and preview checks. Reproduce with
+`FidgetExamples.Editor.MercurySdfValidation.Run()` through Unity CLI eval.
