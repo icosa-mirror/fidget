@@ -21,7 +21,11 @@ ensure Quality settings do not override it with a different pipeline.
    AnimatedBoolean. The scene requires
    the extended wrapper with ABI 5 native libraries; older published packages
    must be updated before importing these scripts.
-5. Open Scenes/ChangingSphere.unity for a minimal `FidgetMesh<ChangingSphere>`
+5. Open Scenes/MercurySdf.unity for Mercury cones and capsules, rounded/chamfered
+   joins, columns, stairs, and polar repetition. Each of its six components uses
+   `FidgetMesh<T>` with a short `Define` method and editable Inspector properties.
+   Requires package 0.5.0 / ABI 6.
+6. Open Scenes/ChangingSphere.unity for a minimal `FidgetMesh<ChangingSphere>`
    component that animates its radius, using a positions-only flat-shaded material.
 
 AnimatedBoolean and InteractiveParameters derive from `FidgetMesh<T>`. Each
@@ -43,7 +47,8 @@ The Shape Library scene can be recreated with **Fidget > Create Shape Library Sa
 Its profiles compile once; property changes update bound parameters. The repeated
 field is clipped to a box before meshing so its output stays inside explicit bounds.
 
-The ShapeLibrary sample assemblies require package version 0.4.0 or later. With
-the older pinned package, Unity skips these assemblies so the existing scenes
-continue to compile. Publish/install the matching ABI 5 package before opening
-ShapeLibrary.unity.
+The ShapeLibrary assemblies require package 0.4.0 or later; MercurySdf requires
+0.5.0 or later. Unity skips an assembly when its required package is unavailable,
+so the other examples continue to compile. Both reusable libraries live in the
+package Runtime; these sample components only build demonstration expressions.
+Mercury's copyright and MIT notice are included in the package's ThirdPartyNotices.md.
