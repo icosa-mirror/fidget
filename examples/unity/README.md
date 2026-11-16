@@ -18,6 +18,25 @@ project includes the usual Unity packages and Unity Pipeline for Editor automati
    property. It uses a positions-only
    flat-shaded material.
 
+The new **ShapeLibrary** scene demonstrates the standard library through four
+small components: `ExtrudedBlend`, `LoftedProfile`, `RevolvedProfile`, and
+`RepeatedShape`. Each derives from `FidgetMesh<T>` and exposes Inspector properties,
+just like AnimatedBoolean. It requires package 0.4.0 / ABI 5. Until that package
+is published and the manifest pin is updated, its assemblies are skipped and the
+existing scenes remain usable.
+
+For local development, build and assemble a complete package, then temporarily
+install that package directory through Package Manager:
+
+```sh
+python3 fidget-native/build.py --target aarch64-apple-darwin --smoke
+python3 unity/package_unity.py --artifacts target/native-artifacts --targets aarch64-apple-darwin --output target/unity-package/com.icosa.fidget
+```
+
+Run these from the repository root, substituting your host target. Select
+`target/unity-package/com.icosa.fidget/package.json` with **Install package from disk**.
+Keep local package references out of commits; restore the published pin after testing.
+
 All scenes default to detail 6; detail remains adjustable in the Inspector.
 AnimatedBoolean and InteractiveParameters define shapes by deriving from
 `FidgetMesh<T>` and overriding `Define`. Update their C# properties directly; the
@@ -66,3 +85,10 @@ On Windows with Unity 6000.6.0f1 / URP 17.6.0:
 
 Native CI builds all eight desktop/mobile architectures. These checks do not
 establish Unity player, IL2CPP, or device performance on every target platform.
+
+On macOS ARM64 with Unity 6000.6.0f1 / URP 17.6.0, the ABI 5 ShapeLibrary scene
+passed Editor worker-meshing checks for all four components, surface normal
+output, bound parameter updates, finite vertices within bounds, and a rendered
+preview. This used a locally assembled package; the published package pin was
+restored afterward. Reproduce with
+`FidgetExamples.Editor.ShapeLibraryValidation.Run()` through Unity CLI eval.

@@ -1,6 +1,6 @@
 {
   "name": "com.icosa.fidget",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "displayName": "Fidget Native Meshing",
   "description": "Parameterized implicit shapes and worker-job meshing into Unity MeshData.",
   "unity": "6000.3",
@@ -8,7 +8,7 @@
   "samples": [
     {
       "displayName": "Examples",
-      "description": "Animated Booleans, interactive parameters, and shared shapes. Assign a URP Lit material; each script builds its shape on startup.",
+      "description": "Animated Booleans, interactive parameters, shared shapes, and the standard shape library. Each component defines its shape in C#.",
       "path": "Samples~/Examples"
     }
   ]

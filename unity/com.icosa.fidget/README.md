@@ -199,7 +199,8 @@ Conventions and differences from the Rust structs:
 
 These APIs require **ABI 5** native libraries. Rebuild/package matching native
 libraries before using updated C# sources with an older published package.
-The **Shape Library** sample scene shows extrusion, blending, lofting, revolution,
+The **Shape Library** sample scene uses four small `FidgetMesh<T>` components to show
+extrusion, blending, lofting, revolution,
 reflection, scaling, rotation, and repetition with editable Inspector properties.
 
 Parameter values must be finite; applications must also keep expressions valid

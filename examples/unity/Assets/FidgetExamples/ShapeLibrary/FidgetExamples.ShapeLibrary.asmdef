@@ -1,0 +1,17 @@
+{
+  "name": "FidgetExamples.ShapeLibrary",
+  "rootNamespace": "FidgetExamples",
+  "references": [
+    "Icosa.Fidget"
+  ],
+  "defineConstraints": [
+    "FIDGET_SHAPE_LIBRARY"
+  ],
+  "versionDefines": [
+    {
+      "name": "com.icosa.fidget",
+      "expression": "0.4.0",
+      "define": "FIDGET_SHAPE_LIBRARY"
+    }
+  ]
+}
