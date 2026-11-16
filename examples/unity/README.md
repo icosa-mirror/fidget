@@ -21,9 +21,9 @@ project includes the usual Unity packages and Unity Pipeline for Editor automati
 The new **ShapeLibrary** scene demonstrates the standard library through four
 small components: `ExtrudedBlend`, `LoftedProfile`, `RevolvedProfile`, and
 `RepeatedShape`. Each derives from `FidgetMesh<T>` and exposes Inspector properties,
-just like AnimatedBoolean. It requires package 0.4.0 / ABI 5. Until that package
-is published and the manifest pin is updated, its assemblies are skipped and the
-existing scenes remain usable.
+just like AnimatedBoolean. The pinned package includes version 0.4.0 / ABI 5,
+so all four examples are available. Their assemblies are skipped when imported into a project using an
+older package version.
 
 For local development, build and assemble a complete package, then temporarily
 install that package directory through Package Manager:
@@ -89,6 +89,6 @@ establish Unity player, IL2CPP, or device performance on every target platform.
 On macOS ARM64 with Unity 6000.6.0f1 / URP 17.6.0, the ABI 5 ShapeLibrary scene
 passed Editor worker-meshing checks for all four components, surface normal
 output, bound parameter updates, finite vertices within bounds, and a rendered
-preview. This used a locally assembled package; the published package pin was
-restored afterward. Reproduce with
+preview. These checks cover both the locally assembled package and the published
+ABI 5 package pinned by this project. Reproduce with
 `FidgetExamples.Editor.ShapeLibraryValidation.Run()` through Unity CLI eval.
