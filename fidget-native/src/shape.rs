@@ -395,4 +395,48 @@ mod mercury_tests {
             .unwrap();
         assert_eq!(value, 0.0);
     }
+    #[test]
+    fn conditional_zero_preserves_the_selected_surface_gradient() {
+        use fidget_core::types::Grad;
+        // Select(x < y, x, 7): at (0, 1, 0), value=0 and dx=1.
+        let mut seven = node(0, 0, 0);
+        seven.value = 7.0;
+        let shape = compile(
+            &[
+                node(1, 0, 0),
+                node(2, 0, 0),
+                node(0, 0, 0),
+                node(21, 1, 0),
+                node(16, 3, 2),
+                node(22, 4, 0),
+                node(24, 4, 0),
+                seven,
+                node(22, 6, 7),
+                node(11, 5, 8),
+            ],
+            0,
+        )
+        .unwrap();
+        let values = ShapeVars::<f32>::new();
+        let tape = shape.0.shape.ez_point_tape();
+        let mut point = VmShape::new_point_eval();
+        let (_, trace) = point
+            .eval_with_vars(&tape, 0.0_f32, 1.0_f32, 0.0_f32, &values)
+            .unwrap();
+        let branch = shape.0.shape.ez_simplify(trace.unwrap()).unwrap();
+        let mut grad = VmShape::new_grad_slice_eval();
+        let result = grad
+            .eval_with_vars(
+                &branch.ez_grad_slice_tape(),
+                &[Grad::new(0.0, 1.0, 0.0, 0.0)],
+                &[Grad::new(1.0, 0.0, 1.0, 0.0)],
+                &[Grad::new(0.0, 0.0, 0.0, 1.0)],
+                &values,
+            )
+            .unwrap()[0];
+        assert_eq!(result.v, 0.0);
+        assert_eq!(result.dx, 1.0);
+        assert_eq!(result.dy, 0.0);
+        assert_eq!(result.dz, 0.0);
+    }
 }

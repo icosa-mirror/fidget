@@ -82,7 +82,9 @@ namespace Icosa.Fidget
         public Expression GreaterThanOrEqual(Expression other) => LessThan(other).Not();
         /// <summary>Choose a value per evaluation point; zero is false. Unselected NaNs do not propagate.</summary>
         public Expression Select(Expression whenTrue, Expression whenFalse) =>
-            And(whenTrue).Or(Not().And(whenFalse));
+            // Add the masked branches: OR would discard the selected branch's
+            // derivative whenever its value is exactly zero (the mesh surface).
+            And(whenTrue) + Not().And(whenFalse);
         /// <summary>Power for nonnegative bases and positive exponents (also defines 0^0 = 1).</summary>
         public Expression Pow(Expression exponent)
         {
