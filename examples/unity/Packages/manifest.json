@@ -1,6 +1,6 @@
 {
   "dependencies": {
-    "com.icosa.fidget": "https://github.com/icosa-mirror/fidget.git#2cc5ef306bd3c25cc6206c6be4f9d77fc204b448",
+    "com.icosa.fidget": "https://github.com/icosa-mirror/fidget.git#50d22dc684769262dca0d5f8edceb11b03fd93c9",
     "com.unity.collab-proxy": "2.13.6",
     "com.unity.ide.rider": "3.1.0",
     "com.unity.ide.visualstudio": "2.0.29",

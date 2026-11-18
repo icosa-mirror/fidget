@@ -1,11 +1,11 @@
 {
   "dependencies": {
     "com.icosa.fidget": {
-      "version": "https://github.com/icosa-mirror/fidget.git#2cc5ef306bd3c25cc6206c6be4f9d77fc204b448",
+      "version": "https://github.com/icosa-mirror/fidget.git#50d22dc684769262dca0d5f8edceb11b03fd93c9",
       "depth": 0,
       "source": "git",
       "dependencies": {},
-      "hash": "2cc5ef306bd3c25cc6206c6be4f9d77fc204b448"
+      "hash": "50d22dc684769262dca0d5f8edceb11b03fd93c9"
     },
     "com.unity.burst": {
       "version": "2.0.0",
