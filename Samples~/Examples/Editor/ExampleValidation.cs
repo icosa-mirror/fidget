@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using System.Collections.Generic;
 using Icosa.Fidget;
 using UnityEditor.SceneManagement;
 using UnityEngine;
@@ -32,25 +33,19 @@ namespace FidgetExamples.Editor
                     var parameters = mesh.Parameters;
                     var bounds = (Bounds)entry.Type.GetField("Bounds").GetValue(mesh);
                     CheckBounds(entry.Type.Name, before, bounds);
-                    if (entry.Property == null) continue; // Fixed motifs have no shape parameter.
-                    var property = entry.Type.GetProperty(entry.Property);
-                    var original = property.GetValue(mesh);
-                    bool changed = false;
-                    try
+                    var changed = new Dictionary<string, bool>();
+                    ExampleControls.Sweep(mesh, control =>
                     {
-                        for (int i = 0; i <= 4; i++)
-                        {
-                            property.SetValue(mesh, Convert.ChangeType(Mathf.Lerp(entry.Minimum, entry.Maximum, i / 4f), property.PropertyType));
-                            result = ExampleMeshChecks.Apply(mesh);
-                            var after = result.vertices;
-                            changed |= before.Length != after.Length;
-                            for (int j = 0; !changed && j < before.Length; j++) changed = (before[j] - after[j]).sqrMagnitude > 0.000001f;
-                            CheckBounds(entry.Type.Name, after, bounds);
-                            if (!ReferenceEquals(parameters, mesh.Parameters)) throw new Exception("Property change rebuilt the graph");
-                        }
-                    }
-                    finally { property.SetValue(mesh, original); }
-                    if (!changed) throw new Exception(entry.Type.Name + " ignored " + entry.Property);
+                        var after = ExampleMeshChecks.Apply(mesh).vertices;
+                        CheckBounds(entry.Type.Name + " at " + control, after, bounds);
+                        if (!ReferenceEquals(parameters, mesh.Parameters)) throw new Exception("Property change rebuilt the graph");
+                        bool different = before.Length != after.Length;
+                        for (int j = 0; !different && j < before.Length; j++)
+                            different = (before[j] - after[j]).sqrMagnitude > 0.000001f;
+                        changed[control] = different || (changed.TryGetValue(control, out var earlier) && earlier);
+                    });
+                    foreach (var control in changed)
+                        if (!control.Value && control.Key != "combined sliders") throw new Exception(entry.Type.Name + " ignored " + control.Key);
                     ExampleMeshChecks.Apply(mesh);
                 }
                 ExampleRender.Capture(scene, name);
