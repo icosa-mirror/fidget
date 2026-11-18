@@ -21,7 +21,12 @@ namespace FidgetExamples.Editor
         {
             if (!mesh.Stream.TrySchedule(mesh.Parameters)) throw new Exception("Could not schedule " + mesh.name);
             var deadline = DateTime.UtcNow.AddSeconds(45);
-            while (!mesh.Stream.TryApply())
+            bool TryApply()
+            {
+                try { return mesh.Stream.TryApply(); }
+                catch (InvalidOperationException error) { throw new InvalidOperationException(mesh.name + ": " + error.Message, error); }
+            }
+            while (!TryApply())
             {
                 if (DateTime.UtcNow > deadline) throw new TimeoutException(mesh.name);
                 Thread.Sleep(1);

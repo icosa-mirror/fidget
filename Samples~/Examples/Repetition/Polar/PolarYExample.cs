@@ -10,9 +10,8 @@ namespace FidgetExamples
         protected override Expression Define(ShapeBuilder<PolarYExample> s)
         {
             var amount = s.Parameter(mesh => mesh.Count);
-            var part = s.Translate(s.Capsule(0.08f, 0.15f), new Vector3(0.5f, 0, 0));
-            var radial = s.RepeatPolarY(part, amount, out var cell);
-            return s.Round(radial, cell.Modulo(2) * 0.025f);
+            var tooth = s.Translate(s.Cone(0.08f, 0.14f), 0.5f, 0, 0);
+            return s.RepeatPolarY(tooth, amount);
         }
     }
 }

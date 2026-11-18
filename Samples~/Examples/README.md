@@ -18,12 +18,22 @@ Scenes and scripts follow the same capability folders:
 - **Repetition**: axes, grids, finite intervals, mirrors, symmetry, folding and polar copies.
 
 Each feature scene compares a few related recipes. Each displayed recipe has its
-own `FidgetMesh<T>`, fitted sampling bounds and Inspector control. GameObject
+own `FidgetMesh<T>` and fitted sampling bounds. GameObject
 transforms arrange the display; unrelated shapes never share a display union.
 The repetition and CSG recipes combine shapes when demonstrating those operations.
 Profiles use thin extrusions so they can be meshed.
 
-Select a shape during Play and change its Inspector property. `Define` registers
+Open **Transforms/Shells** to see wall thickness in a cutaway. In
+**Combinations/Booleans**, adjust Separation to compare the filled overlap
+of a union with the opening in an exclusive-or. **Transforms/Elongation**
+shows the XY midsection of the same elongated sphere in both cases. Contour
+levels are spaced 0.05 local units apart. In **Solids/DistanceBounds**, select
+the octahedron and adjust the probe's Tip Distance to compare exact and bound
+distances along its X axis. **Construction/ProfilesToSolids** shows the source
+outlines beneath the results; **Repetition/Polar** marks the two rotation axes.
+
+Select a parameterized shape during Play and change its Inspector property.
+Fixed motifs such as the heart have no adjustable shape parameter. `Define` registers
 that property with `shape.Parameter`, so the mesh updates without rebuilding its
 expression. Change Detail to adjust resolution. Bounds cover the demonstrated
 parameter range; adjust Bounds and rebuild when extending a recipe.
