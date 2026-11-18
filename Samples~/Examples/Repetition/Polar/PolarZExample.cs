@@ -10,7 +10,8 @@ namespace FidgetExamples
         protected override Expression Define(ShapeBuilder<PolarZExample> s)
         {
             var amount = s.Parameter(mesh => mesh.Count);
-            return s.RepeatPolarZ(s.Translate(s.Sphere(0.12f), 0.5f, 0, 0), amount);
+            var tooth = s.Translate(s.Cone(0.08f, 0.14f), 0.5f, 0, 0);
+            return s.RepeatPolarZ(tooth, amount);
         }
     }
 }
