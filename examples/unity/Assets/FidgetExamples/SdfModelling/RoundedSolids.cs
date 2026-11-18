@@ -13,7 +13,7 @@ namespace FidgetExamples
             return GalleryLayout.Tiles(s,
                 s.RoundedBox(new Expression3(0.6f, 0.45f, 0.4f), amount),
                 s.RoundedCylinder(0.55f, 0.5f, amount),
-                s.RoundedX(0.55f, amount),
+                s.ExtrudeZExact(s.RoundedX(0.55f, amount), -0.12f, 0.12f),
                 s.Shell(s.Sphere(0.55f), amount));
         }
     }

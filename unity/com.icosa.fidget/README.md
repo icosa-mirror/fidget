@@ -151,7 +151,9 @@ freeing resources a job still uses. An overload accepts a per-request depth.
    interior gradient; if that is singular too, it uses finite differences of
    the selected branch. If that branch is locally constant at a zero-sign
    boundary, finite differences of the original field recover the face-interior
-   limit. There is no crease-angle threshold. This is recovered face classification,
+   limit. Corner gradients are oriented into the face-interior hemisphere so
+   signed-distance branches do not flip normals across floating-point surface
+   offsets. This requires an additional gradient evaluation per face. There is no crease-angle threshold. This is recovered face classification,
    not provenance exported by the mesher: a triangle spanning a branch boundary
    cannot represent that transition exactly. It adds expression evaluation,
    normal storage, and potentially more render vertices. The rounded-box Boolean

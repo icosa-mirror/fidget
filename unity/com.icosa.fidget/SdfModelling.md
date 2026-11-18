@@ -205,7 +205,8 @@ spurious zero-distance rays beyond those tips. `Vesica` swaps its coordinate
 orientation when height exceeds width. Endpoint cylinders and spherical sectors
 use equivalent distance constructions that retain cap/apex derivatives.
 Surface-normal preparation can sample the full field when a selected zero-sign
-trace is locally constant at a valid face.
+trace is locally constant at a valid face, and orients corner derivatives into
+the same hemisphere as that face-interior derivative.
 
 The source blob and ellipsoid bound retain singularities at the origin. Closed-form
 curve solvers can be ill-conditioned near repeated roots and symmetry axes.

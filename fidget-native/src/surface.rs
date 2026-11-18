@@ -82,7 +82,64 @@ impl SurfaceWorkspace {
                 .ok()?;
             // Release the evaluator borrow before a possible face-interior query.
             let gradients: [Grad; 3] = gradients.try_into().ok()?;
-            let mut interior_normal = None;
+            let xs = [Grad::new(centroid.x, 1.0, 0.0, 0.0)];
+            let ys = [Grad::new(centroid.y, 0.0, 1.0, 0.0)];
+            let zs = [Grad::new(centroid.z, 0.0, 0.0, 1.0)];
+            let g = self
+                .gradient
+                .eval_with_vars(branch, &xs, &ys, &zs, values)
+                .ok()?[0];
+            let mut n = Vector3::new(g.dx, g.dy, g.dz);
+            let mut len = n.norm();
+            if !len.is_finite() || len == 0.0 {
+                // Dual contouring may collapse a face to a pole. Its
+                // centroid is singular too; sample the selected
+                // branch symmetrically to recover a finite normal.
+                let step = centroid.abs().max().max(1.0) * 1e-4;
+                // A signed-distance formula may select a zero-valued
+                // sign branch exactly on a planar face. That trace is
+                // locally constant even though the full field has a
+                // valid derivative across the face. Try the full field
+                // only after the selected branch cannot recover one.
+                for sample_tape in [point_branch, &tape] {
+                    for axis in 0..3 {
+                        let mut hi = centroid;
+                        let mut lo = centroid;
+                        hi[axis] += step;
+                        lo[axis] -= step;
+                        let (a, _) = self
+                            .point
+                            .eval_with_vars(
+                                sample_tape,
+                                hi.x,
+                                hi.y,
+                                hi.z,
+                                values,
+                            )
+                            .ok()?;
+                        let (b, _) = self
+                            .point
+                            .eval_with_vars(
+                                sample_tape,
+                                lo.x,
+                                lo.y,
+                                lo.z,
+                                values,
+                            )
+                            .ok()?;
+                        n[axis] = (a - b) / (2.0 * step);
+                    }
+                    len = n.norm();
+                    if len.is_finite() && len > 0.0 {
+                        break;
+                    }
+                }
+            }
+            let interior_normal = if len.is_finite() && len > 0.0 {
+                Some(n / len)
+            } else {
+                None
+            };
             let mut triangle = Vector3::zeros();
             for corner in 0..3 {
                 let g = gradients[corner];
@@ -92,68 +149,17 @@ impl SurfaceWorkspace {
                     // Cone tips and capsule poles have no unique derivative (or
                     // contain 0 * NaN from an inactive distance term). Use the
                     // selected face's interior derivative as the corner limit.
-                    if interior_normal.is_none() {
-                        let xs = [Grad::new(centroid.x, 1.0, 0.0, 0.0)];
-                        let ys = [Grad::new(centroid.y, 0.0, 1.0, 0.0)];
-                        let zs = [Grad::new(centroid.z, 0.0, 0.0, 1.0)];
-                        let g = self
-                            .gradient
-                            .eval_with_vars(branch, &xs, &ys, &zs, values)
-                            .ok()?[0];
-                        let mut n = Vector3::new(g.dx, g.dy, g.dz);
-                        let mut len = n.norm();
-                        if !len.is_finite() || len == 0.0 {
-                            // Dual contouring may collapse a face to a pole. Its
-                            // centroid is singular too; sample the selected
-                            // branch symmetrically to recover a finite normal.
-                            let step = centroid.abs().max().max(1.0) * 1e-4;
-                            // A signed-distance formula may select a zero-valued
-                            // sign branch exactly on a planar face. That trace is
-                            // locally constant even though the full field has a
-                            // valid derivative across the face. Try the full field
-                            // only after the selected branch cannot recover one.
-                            for sample_tape in [point_branch, &tape] {
-                                for axis in 0..3 {
-                                    let mut hi = centroid;
-                                    let mut lo = centroid;
-                                    hi[axis] += step;
-                                    lo[axis] -= step;
-                                    let (a, _) = self
-                                        .point
-                                        .eval_with_vars(
-                                            sample_tape,
-                                            hi.x,
-                                            hi.y,
-                                            hi.z,
-                                            values,
-                                        )
-                                        .ok()?;
-                                    let (b, _) = self
-                                        .point
-                                        .eval_with_vars(
-                                            sample_tape,
-                                            lo.x,
-                                            lo.y,
-                                            lo.z,
-                                            values,
-                                        )
-                                        .ok()?;
-                                    n[axis] = (a - b) / (2.0 * step);
-                                }
-                                len = n.norm();
-                                if len.is_finite() && len > 0.0 {
-                                    break;
-                                }
-                            }
-                            if !len.is_finite() || len == 0.0 {
-                                return None;
-                            }
-                        }
-                        interior_normal = Some(n / len);
-                    }
                     normal = interior_normal?;
                 } else {
                     normal /= length;
+                }
+                // Frozen absolute-value branches can oppose a dynamic sign
+                // comparison at corners a few ulps across the surface. Keep
+                // the analytic direction in the face-interior hemisphere.
+                if let Some(reference) = interior_normal {
+                    if normal.dot(&reference) < 0.0 {
+                        normal = -normal;
+                    }
                 }
                 // Treat signed zeros as equal; no angular/position tolerance is used.
                 for n in normal.iter_mut() {
@@ -339,6 +345,58 @@ mod tests {
             }
         }
         assert!(top_vertices > 0);
+    }
+
+    #[test]
+    fn planar_normals_do_not_flip_when_corners_straddle_a_frozen_sign_branch() {
+        let (x, y, z) = Tree::axes();
+        let signed_plane = y.clone().compare(0.0) * y.clone().abs();
+        let shape = VmShape::from(
+            signed_plane
+                .max(x.abs() - 0.6)
+                .max(z.abs() - 0.6)
+                .max(-y - 0.5),
+        );
+        let values = ShapeVars::new();
+        let mut input = Octree::build(
+            &shape.bind(&values).unwrap(),
+            &Settings {
+                depth: 5,
+                threads: None,
+                ..Default::default()
+            },
+        )
+        .unwrap()
+        .walk_dual();
+        for (index, p) in input.vertices.iter_mut().enumerate() {
+            if p.y.abs() < 1e-6 {
+                p.y = if index % 2 == 0 { 5e-7 } else { -5e-7 };
+            }
+        }
+        let positions = input.vertices.clone();
+        let triangles = input.triangles.clone();
+        let (output, normals) = SurfaceWorkspace::default()
+            .prepare(&shape, &values, input)
+            .unwrap();
+        let mut checked = 0;
+        for (before, after) in triangles.iter().zip(&output.triangles) {
+            for corner in 0..3 {
+                let p = positions[before[corner]];
+                assert_eq!(
+                    p, output.vertices[after[corner]],
+                    "normal preparation moved geometry"
+                );
+                if p.y.abs() < 1e-6 && p.x.abs() < 0.5 && p.z.abs() < 0.5 {
+                    let n = normals[after[corner]];
+                    assert!(
+                        n.y > 0.9999,
+                        "flipped planar normal at {p:?}: {n:?}"
+                    );
+                    checked += 1;
+                }
+            }
+        }
+        assert!(checked > 0);
     }
 
     #[test]
