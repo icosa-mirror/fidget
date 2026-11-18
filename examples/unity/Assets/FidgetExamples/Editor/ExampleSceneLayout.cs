@@ -40,20 +40,24 @@ namespace FidgetExamples.Editor
             int columns = Mathf.Min(3, count), rows = Mathf.CeilToInt(count / (float)columns);
             var location = new Vector3((index % columns - (columns - 1) * 0.5f) * 2.4f,
                 ((rows - 1) * 0.5f - index / columns) * 2.4f + 0.15f, 0);
+            bool intervals = entry.Scene == "Repetition/Intervals";
+            if (intervals) location = new Vector3(0, index == 0 ? 1.05f : -0.55f, 0);
             var rotation = Quaternion.Euler(entry.Profile ? 12 : 22, -15, 0);
             if (entry.Type == typeof(SphereCavityExample)) rotation = Quaternion.Euler(0, 60, 0);
             if (entry.Type == typeof(CutHollowSphereExample)) rotation = Quaternion.Euler(-55, 0, 0);
             if (entry.Scene == "Repetition/Polar") rotation = Quaternion.Euler(-38, 0, 0);
             if (entry.Scene == "Construction/ProfilesToSolids") rotation = Quaternion.Euler(-20, 45, 0);
             if (entry.Scene == "Transforms/Elongation") rotation = Quaternion.identity;
-            float scale = 1.6f / Mathf.Max(bounds.size.x, bounds.size.y, bounds.size.z);
+            // Give the longest adjustable array the full width of its own row.
+            float displayWidth = mesh is RepeatIntervalXExample ? 4.4f : 1.6f;
+            float scale = displayWidth / Mathf.Max(bounds.size.x, bounds.size.y, bounds.size.z);
             mesh.transform.localScale = Vector3.one * scale;
             mesh.transform.rotation = rotation;
             mesh.transform.position = location - rotation * (bounds.center * scale);
             mesh.GetComponent<MeshRenderer>().sharedMaterial = AssetDatabase.LoadAssetAtPath<Material>(RootFolder() +
                 (index % 2 == 0 ? "/Rendering/Fidget Orange.mat" : "/Rendering/Fidget Blue.mat"));
             var label = new GameObject(entry.Title + " label", typeof(TextMesh)).GetComponent<TextMesh>();
-            label.transform.position = location + new Vector3(0, -1.05f, -0.7f);
+            label.transform.position = location + new Vector3(0, intervals ? -0.52f : -1.05f, -0.7f);
             label.text = entry.Title;
             label.anchor = TextAnchor.MiddleCenter;
             label.fontSize = 40;

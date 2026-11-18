@@ -6,7 +6,7 @@ namespace FidgetExamples
     /// <summary>One independently meshed chamfered subtraction recipe.</summary>
     public class ChamferedSubtractionExample : FidgetMesh<ChamferedSubtractionExample>
     {
-        [field: SerializeField, Range(0f, 0.58f)] public float Radius { get; set; } = 0.25f;
+        [field: SerializeField, Range(0f, 0.4f)] public float Radius { get; set; } = 0.25f;
         [field: SerializeField, Range(0.17f, 0.37f)] public float ArmWidth { get; set; } = 0.22f;
         protected override Expression Define(ShapeBuilder<ChamferedSubtractionExample> s)
         {

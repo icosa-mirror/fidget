@@ -39,7 +39,7 @@ operation being demonstrated. Thin extrusions make the XY profiles visible.
 
 Each recipe derives from `FidgetMesh<T>` and overrides `Define`. Parameterized
 recipes bind their Inspector properties with `shape.Parameter`. Changing a property
-updates its mesh without rebuilding the expression. Detail defaults to 6 (7 for columns and stairs) and is
+updates its mesh without rebuilding the expression. Detail defaults to 6 (7 for column joins, stair joins and slotted rotors) and is
 adjustable. Bounds cover a sampled sweep of the demonstrated parameter range,
 including individual endpoints and combined settings. For example, the box exposes
 three half extents, the rounded box adds corner radius, and the regular star
@@ -83,8 +83,9 @@ maintained separately so their UI and animation remain focused.
 `FidgetExamples.Editor.ExampleValidation.Run("Solids/Cones")` checks nonempty
 meshes, finite vertices and surface normals, parameter updates without graph
 rebuilds, and margins inside the saved bounds. It also saves a rendered preview
-under `target/example-checks` when run in this repository. The checks sample the
-exposed parameter range at five points; they are not a proof for arbitrary inputs.
+under `target/example-checks` when run in this repository. The checks exercise
+each slider at both endpoints with the others at their defaults. They also test
+all sliders together at their minima, midpoints and maxima.
 
 `Icosa.Fidget.Editor.IntegrationCheck.RunModelling()` additionally checks Unity
 matrix transforms and worker output. The .NET checks cover the unified builder

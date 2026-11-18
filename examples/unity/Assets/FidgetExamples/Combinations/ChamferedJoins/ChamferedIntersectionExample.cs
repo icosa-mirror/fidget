@@ -6,8 +6,8 @@ namespace FidgetExamples
     /// <summary>One independently meshed chamfered intersection recipe.</summary>
     public class ChamferedIntersectionExample : FidgetMesh<ChamferedIntersectionExample>
     {
-        [field: SerializeField, Range(0f, 0.58f)] public float Radius { get; set; } = 0.25f;
-        [field: SerializeField, Range(0.17f, 0.37f)] public float ArmWidth { get; set; } = 0.22f;
+        [field: SerializeField, Range(0f, 0.36f)] public float Radius { get; set; } = 0.25f;
+        [field: SerializeField, Range(0.2f, 0.37f)] public float ArmWidth { get; set; } = 0.22f;
         protected override Expression Define(ShapeBuilder<ChamferedIntersectionExample> s)
         {
             var armWidth = s.Parameter(mesh => mesh.ArmWidth);

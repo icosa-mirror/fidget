@@ -38,7 +38,9 @@ namespace FidgetExamples.Editor
             Include("default");
             ExampleControls.Sweep(mesh, Include);
             bounds.Expand(bounds.size * 0.2f + Vector3.one * 0.08f);
-            ExampleMeshChecks.Configure(mesh, bounds, MeshNormals.Surface, entry.Scene.Contains("ColumnJoins") || entry.Scene.Contains("StairJoins") ? 7 : 6);
+            bool fineDetail = entry.Scene == "Repetition/Polar" || entry.Scene == "Combinations/ColumnJoins" ||
+                entry.Scene == "Combinations/StairJoins";
+            ExampleMeshChecks.Configure(mesh, bounds, MeshNormals.Surface, fineDetail ? 7 : 6);
             return bounds;
         }
     }
