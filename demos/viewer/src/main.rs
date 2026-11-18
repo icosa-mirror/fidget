@@ -1,3 +1,6 @@
+// zerocopy derives generate field projection identifiers prefixed with ẕ.
+#![cfg_attr(doc, allow(uncommon_codepoints))]
+
 use anyhow::Result;
 use clap::Parser;
 use crossbeam_channel::{Receiver, Sender, unbounded};
