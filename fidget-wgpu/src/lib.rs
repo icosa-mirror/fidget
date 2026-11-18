@@ -215,6 +215,8 @@
 //! None of these shaders contain a main `@compute` entry point; that is
 //! expected to be provided by the user.
 #![warn(missing_docs)]
+// zerocopy derives generate field projection identifiers prefixed with ẕ.
+#![cfg_attr(doc, allow(uncommon_codepoints))]
 
 use fidget_bytecode::{Bytecode, ReservedRegister};
 use fidget_core::{
