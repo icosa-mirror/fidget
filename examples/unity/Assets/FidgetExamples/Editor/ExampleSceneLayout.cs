@@ -80,13 +80,12 @@ namespace FidgetExamples.Editor
             {
                 mesh.transform.position += Vector3.up * 0.25f;
                 var center = location + Vector3.down * 0.74f;
-                if (mesh is LoftExample loft)
+                if (mesh is LoftExample)
                 {
-                    Outline(center + Vector3.left * 0.32f, material, new Vector2(0.4f, 0.4f), 0, true);
-                    Outline(center + Vector3.right * 0.32f, material, new Vector2(loft.EndWidth, 0.22f), 0.06f, false, loft);
+                    Outline(center + Vector3.left * 0.32f, material, mesh, true);
+                    Outline(center + Vector3.right * 0.32f, material, mesh, false);
                 }
-                else if (mesh is RevolutionExample) Outline(center, material, Vector2.one * 0.2f, 0, true);
-                else Outline(center, material, new Vector2(0.4f, 0.3f), 0.1f, false);
+                else Outline(center, material, mesh, mesh is RevolutionExample);
             }
         }
 
@@ -102,7 +101,7 @@ namespace FidgetExamples.Editor
             return line;
         }
 
-        private static void Outline(Vector3 center, Material material, Vector2 size, float radius, bool circle, LoftExample loft = null)
+        private static void Outline(Vector3 center, Material material, FidgetMesh source, bool circle)
         {
             var line = Line("Source profile", null, material);
             line.transform.position = center;
@@ -110,9 +109,7 @@ namespace FidgetExamples.Editor
             line.loop = true;
             var outline = line.gameObject.AddComponent<ProfileOutline>();
             outline.Line = line;
-            outline.Loft = loft;
-            outline.HalfSize = size;
-            outline.CornerRadius = radius;
+            outline.Source = source;
             outline.Circle = circle;
             outline.Refresh();
         }

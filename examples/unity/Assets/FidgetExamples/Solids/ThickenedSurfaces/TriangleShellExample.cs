@@ -7,10 +7,12 @@ namespace FidgetExamples
     public class TriangleShellExample : FidgetMesh<TriangleShellExample>
     {
         [field: SerializeField, Range(0.05f, 0.18f)] public float Thickness { get; set; } = 0.1f;
+        [field: SerializeField, Range(0.1f, 0.95f)] public float TipHeight { get; set; } = 0.6f;
         protected override Expression Define(ShapeBuilder<TriangleShellExample> s)
         {
+            var tipHeight = s.Parameter(mesh => mesh.TipHeight);
             var amount = s.Parameter(mesh => mesh.Thickness);
-            return s.Shell(s.TriangleSurface(new Expression3(-0.6f, -0.5f, 0), new Expression3(0.6f, -0.5f, 0), new Expression3(0, 0.6f, 0)), amount);
+            return s.Shell(s.TriangleSurface(new Expression3(-0.6f, -0.5f, 0), new Expression3(0.6f, -0.5f, 0), new Expression3(0, tipHeight, 0)), amount);
         }
     }
 }

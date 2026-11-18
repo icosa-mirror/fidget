@@ -28,7 +28,8 @@ radius properties.
 
 In `Repetition/Polar`, compare the single vent slot with the two patterned rotors.
 In Play mode, select either repeated rotor and change **Count** to set how many
-slots are cut around its local axis.
+slots are cut around its local axis, from 1 to 16. The bore, thickness, slot
+length, width and radial position are editable on all three rotors.
 
 Feature scenes show a small set of related recipes. **Each displayed recipe has
 its own mesh and fitted local sampling bounds.** GameObject transforms arrange
@@ -39,8 +40,11 @@ operation being demonstrated. Thin extrusions make the XY profiles visible.
 Each recipe derives from `FidgetMesh<T>` and overrides `Define`. Parameterized
 recipes bind their Inspector properties with `shape.Parameter`. Changing a property
 updates its mesh without rebuilding the expression. Detail defaults to 6 (7 for columns and stairs) and is
-adjustable. Bounds cover a sampled sweep of the demonstrated parameter range;
-when extending a recipe beyond those settings, adjust its Bounds and rebuild.
+adjustable. Bounds cover a sampled sweep of the demonstrated parameter range,
+including individual endpoints and combined settings. For example, the box exposes
+three half extents, the rounded box adds corner radius, and the regular star
+exposes point count, indentation, radius and extrusion depth. When extending a
+recipe beyond its tested range, adjust its Bounds and rebuild.
 
 The public modelling API is `ShapeBuilder`, documented in the package's
 `SdfModelling.md`. Mercury and IQ are implementation sources and attributions,
