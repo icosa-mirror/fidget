@@ -1,115 +1,85 @@
-# Fidget Unity example
+# Fidget Unity examples
 
-Open this directory with **Unity 6000.6.0f1** (Unity 6.6). It uses **URP 17.6.0**,
-with the supplied pipeline assigned in Graphics and every Quality level. The
-project includes the usual Unity packages and Unity Pipeline for Editor automation.
+Open this directory with **Unity 6000.6.0f1** (Unity 6.6), using **URP 17.6.0**.
+Let Package Manager resolve the pinned `com.icosa.fidget` distribution, then open
+an example under **Assets/FidgetExamples/Scenes** and press Play. Matching native
+libraries ship in the package; no Rust build is required for package consumers.
 
-1. Let Package Manager resolve `com.icosa.fidget`. The pinned UPM distribution
-   includes matching C# and native libraries for Windows, macOS, Linux, Android
-   and iOS. No Rust build or separate native-library installation is required.
-2. Open a scene in **Assets/FidgetExamples/Scenes** and press Play.
-3. Start with **AnimatedBoolean**: a cylinder cuts a rounded box. Adjust its
-   cutter radius, travel, speed, and detail on its single shape component.
-4. **InteractiveParameters** has on-screen sliders for the torus's major and tube
-   radii. They accept pointer/touch input and regenerate the mesh as values change.
-5. **SharedShapeInstances** creates four `SharedSphere` components using
-   `CreateSharedInstance`, then animates each component's `Radius` property.
-6. **ChangingSphere** defines a sphere in `Define` and animates its `Radius`
-   property. It uses a positions-only
-   flat-shaded material.
+## Finding an example
 
-The new **ShapeLibrary** scene demonstrates the standard library through four
-small components: `ExtrudedBlend`, `LoftedProfile`, `RevolvedProfile`, and
-`RepeatedShape`. Each derives from `FidgetMesh<T>` and exposes Inspector properties,
-just like AnimatedBoolean. The pinned package includes version 0.6.0 / ABI 6,
-so all four examples and both SDF libraries are available. Their assemblies are
-skipped when imported into a project using an older package version.
+Scenes and recipe scripts are organized by capability:
 
-**MercurySdf** adds six focused components for cones and capsules, rounded and
-chamfered joins, columns, stairs, and polar repetition. The reusable `HgSdf` API,
-expression vectors, and standard shape library all live in the UPM package's
-Runtime folder. Samples only contain example definitions and scene tooling.
-The separate `IqSdf` API adds the 2D/3D functions and operators from Inigo
-Quilez's articles, retaining their own conventions alongside `HgSdf`. Its guide
-is included as `IqSdf.md` in the package.
-Mercury attribution and its MIT notice ship in the package's `ThirdPartyNotices.md`.
+| Folder | Examples |
+| --- | --- |
+| Basics | Primitives and an animated sphere |
+| Parameters | On-screen controls that update bound properties |
+| Sharing | Independent instances sharing a compiled definition |
+| Solids | Capsules, cones, rings, prisms, polyhedra, rounded solids and surfaces |
+| Profiles | Rectangles, triangles, polygons, stars, lenses, curves and decorative profiles |
+| Construction | Extrusion, revolution, lofting and blended extrusion |
+| Combinations | Animated subtraction, smooth/rounded/chamfered joins, columns, stairs and surface features |
+| Transforms | Twist, bend, displacement, elongation, rounding and shells |
+| Repetition | Axes, grids, finite intervals, mirrors, folds and polar copies |
 
-For local development, build and assemble a complete package, then temporarily
-install that package directory through Package Manager:
+Start with `Basics/Primitives` and `Combinations/AnimatedSubtraction`.
+`Parameters/InteractiveParameters` has pointer/touch sliders for a torus.
+`Sharing/SharedDefinitions` uses `CreateSharedInstance` and animates independent
+radius properties.
+
+Feature scenes show a small set of related recipes. **Each displayed recipe has
+its own mesh and fitted local sampling bounds.** GameObject transforms arrange
+the display; unrelated solids are never unioned merely to fit them into one
+component. Repetition and CSG examples combine geometry only when that is the
+operation being demonstrated. Thin extrusions make the XY profiles visible.
+
+Every recipe derives from `FidgetMesh<T>` and overrides `Define`, with ordinary
+Inspector properties registered using `shape.Parameter`. Changing a property
+updates its mesh without rebuilding the expression. Detail defaults to 6 (7 for columns and stairs) and is
+adjustable. Bounds cover a sampled sweep of the demonstrated parameter range;
+when extending a recipe beyond those settings, adjust its Bounds and rebuild.
+
+The public modelling API is `ShapeBuilder`, documented in the package's
+`SdfModelling.md`. Mercury and IQ are implementation sources and attributions,
+not separate public APIs or example categories. Their notices ship in
+`ThirdPartyNotices.md`.
+
+## Source and packaging
+
+`Assets/FidgetExamples` is the single source for sample scripts, scenes, rendering
+assets and scene tools. `unity/package_unity.py` copies it into the published
+package's `Samples~/Examples`. Import **Examples** from Package Manager in any
+other Unity project. Runtime code lives in `unity/com.icosa.fidget`.
+
+The manifest pins a published UPM commit. The default distribution includes iOS
+device libraries; use `upm-simulator` for ARM64 simulator builds. Do not link both
+ARM64 archives together.
+
+For local development, run from the repository root:
 
 ```sh
 python3 fidget-native/build.py --target aarch64-apple-darwin --smoke
 python3 unity/package_unity.py --artifacts target/native-artifacts --targets aarch64-apple-darwin --output target/unity-package/com.icosa.fidget
 ```
 
-Run these from the repository root, substituting your host target. Select
-`target/unity-package/com.icosa.fidget/package.json` with **Install package from disk**.
-Keep local package references out of commits; restore the published pin after testing.
+Install that package directory through Package Manager. Restore the published
+manifest pin before committing; local absolute paths are not distributable.
 
-All scenes default to detail 6; detail remains adjustable in the Inspector.
-AnimatedBoolean and InteractiveParameters define shapes by deriving from
-`FidgetMesh<T>` and overriding `Define`. Update their C# properties directly; the
-component handles preparation, scheduling, and cleanup. SharedShapeInstances
-uses the same component API and shares a definition explicitly through
-`CreateSharedInstance`.
+## Validation and scene tools
 
-The three general API examples use ordinary URP Lit and `MeshNormals.Surface`.
-Fidget's expression branches select surface gradients, keeping curved surfaces
-smooth and splitting render vertices at differing normals. No crease-angle
-threshold is used. Classification samples each triangle's centroid: triangles
-that cross a branch boundary remain a limitation. See the package README for
-API usage, ownership, and meshing settings.
+`FidgetExamples.Editor.ExampleScenes.Create("Solids/Cones")` recreates a feature
+scene using Unity's scene API and fits each recipe's bounds across its parameter
+range. **Fidget > Create Feature Examples** recreates all feature scenes; close
+any feature scene you intend to recreate first. The four introductory scenes are
+maintained separately so their UI and animation remain focused.
 
-Meshes are generated on worker jobs and applied through Unity MeshData. Each
-stream keeps one request in flight; changing parameters does not build a queue
-of obsolete frames.
+`FidgetExamples.Editor.ExampleValidation.Run("Solids/Cones")` checks nonempty
+meshes, finite vertices and surface normals, parameter updates without graph
+rebuilds, and margins inside the saved bounds. It also saves a rendered preview
+under `target/example-checks` when run in this repository. The checks sample the
+exposed parameter range at five points; they are not a proof for arbitrary inputs.
 
-## Source and packaging
-
-`Assets/FidgetExamples` is the single source for scenes, scripts, rendering assets,
-and sample documentation. `unity/package_unity.py` copies it into the published
-UPM package's `Samples~/Examples` directory. There is no second maintained copy.
-Other Unity projects can import **Examples** from Package Manager.
-
-`Assets`, `Packages` and `ProjectSettings` are versioned. Caches, logs, generated
-IDE files and player builds are ignored. Package runtime source lives under
-`unity/com.icosa.fidget`; the `upm` distribution branch includes native binaries.
-The manifest pins a published UPM commit to keep managed and native APIs aligned.
-
-The default package includes **iOS device** libraries. For ARM64 iOS simulator
-builds, use the `upm-simulator` distribution instead. Do not link the device and
-simulator ARM64 archives together.
-
-## Validation
-
-On Windows with Unity 6000.6.0f1 / URP 17.6.0:
-
-1. AnimatedBoolean's centered cut was visually accepted with expression-derived
-   normals and ordinary URP Lit at depth 5.
-2. InteractiveParameters generated a lit mesh and applied radius changes on
-   demand; SharedShapeInstances generated all four independently sized meshes.
-3. Live API checks covered parameter snapshots, independent streams, disposing
-   the compiled shape while streams remain alive, depth changes with a stable
-   Mesh, and disposal with a request in flight.
-
-Native CI builds all eight desktop/mobile architectures. These checks do not
-establish Unity player, IL2CPP, or device performance on every target platform.
-
-On macOS ARM64 with Unity 6000.6.0f1 / URP 17.6.0, the ShapeLibrary scene
-passed Editor worker-meshing checks for all four components, surface normal
-output, bound parameter updates, finite vertices within bounds, and a rendered
-preview. These checks cover both the locally assembled package and the published
-package currently pinned by this project. Reproduce with
-`FidgetExamples.Editor.ShapeLibraryValidation.Run()` through Unity CLI eval.
-
-The Mercury port is checked against the original GLSL with 81,534 numeric
-comparisons covering all 74 exported overloads and both odd/even repetition
-counts. On macOS ARM64 / Unity 6000.6.0f1, all six Mercury scene meshes passed
-surface-normal, bounds, parameter-update, and preview checks. Reproduce with
-`FidgetExamples.Editor.MercurySdfValidation.Run()` through Unity CLI eval.
-
-The IQ release checks cover 102 standalone overloads, 6,120 seeded spatial
-probes, independent primitive and curve distances, and six native meshes with
-surface normals. Unity's matrix-based `opTx` is additionally checked with
-`Icosa.Fidget.Editor.IntegrationCheck.RunIq()` (transformed bounds, worker output,
-normals, and rejection of a singular transform).
+`Icosa.Fidget.Editor.IntegrationCheck.RunModelling()` additionally checks Unity
+matrix transforms and worker output. The .NET checks cover the unified builder
+API and comparisons with the original formulas. Native CI builds all eight
+architectures. Local Unity checks use macOS ARM64; they do not establish player,
+IL2CPP or device performance for every target.

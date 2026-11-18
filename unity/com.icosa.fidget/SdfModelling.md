@@ -23,12 +23,16 @@ requiring a callback or mutable coordinate reference.
 
 ## Runnable examples
 
-Import the Examples sample and open `Scenes/SdfSolids.unity`,
-`Scenes/SdfProfiles.unity`, or `Scenes/SdfOperations.unity`. Their 34 focused
-`FidgetMesh<T>` components demonstrate solids, profiles, distance variants, open
-surfaces, patterned joins, deformations, finite/polar repetition and identifiers.
-Select a cell in Play mode and change its Inspector property. The small scripts
-in `SdfModelling/` are the recipes; their layout helper only arranges the parts.
+Import the Examples sample and browse `Scenes/` by capability: Basics,
+Parameters, Sharing, Solids, Profiles, Construction, Combinations, Transforms,
+and Repetition. Feature scenes such as `Solids/Cones`, `Profiles/Rectangles`,
+`Combinations/RoundedJoins` and `Repetition/Polar` compare a few related recipes.
+Each displayed recipe has its own `FidgetMesh<T>`, sampling bounds and Inspector
+control. Placement uses GameObject transforms; unrelated display shapes never
+share a union or sampling volume. Profiles are extruded into thin solids.
+
+The scripts use the same folder structure as the scenes. Select a shape in Play
+mode and edit its property to update the mesh without rebuilding its expression.
 
 ## Coordinates and dimensions
 

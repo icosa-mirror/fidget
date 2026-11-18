@@ -1,82 +1,46 @@
-# Examples
+# Fidget examples
 
-Import **Examples** from Package Manager. The Rendering folder contains a URP
-pipeline asset, renderer, and materials. In a project without a configured URP
-pipeline, assign Rendering/FidgetURP.asset in Project Settings > Graphics and
-ensure Quality settings do not override it with a different pipeline.
+Import Examples in Package Manager, open a scene under `Scenes/`, and press Play.
+Requires Fidget 0.7.0 or later. The sample assemblies are skipped for older packages.
 
-1. Open Scenes/AnimatedBoolean.unity and press Play. Change the cutter radius,
-   travel, speed, and FidgetMesh detail in the Inspector.
-2. Open Scenes/InteractiveParameters.unity and use the on-screen major-radius and
-   tube-radius sliders. Their persistent events update the shape in Play mode.
-   The controls use Unity UI and the Input System UI module; install those packages
-   alongside URP when importing the samples into another project.
-3. Open Scenes/SharedShapeInstances.unity to see its nested `SharedSphere` components created
-   with `CreateSharedInstance`, sharing one definition with independent radii.
-4. Open Scenes/ShapeLibrary.unity for four standard-library demonstrations: extrusion
-   and smooth blend, loft and arbitrary-axis rotation, revolution and reflection,
-   and scaled repetition. Press Play and edit the
-   properties on ExtrudedBlend, LoftedProfile, RevolvedProfile, and RepeatedShape
-   in the Inspector. Each follows the same `FidgetMesh<T>` / `Define` pattern as
-   AnimatedBoolean. The scene requires
-   the extended wrapper with ABI 5 native libraries; older published packages
-   must be updated before importing these scripts.
-5. Open Scenes/MercurySdf.unity for Mercury cones and capsules, rounded/chamfered
-   joins, columns, stairs, and polar repetition. Each of its six components uses
-   `FidgetMesh<T>` with a short `Define` method and editable Inspector properties.
-   Requires package 0.5.0 / ABI 6.
-6. Open Scenes/ChangingSphere.unity for a minimal `FidgetMesh<ChangingSphere>`
-   component that animates its radius, using a positions-only flat-shaded material.
+Start with `Basics/Primitives` or `Combinations/AnimatedSubtraction`.
+`Basics/AnimatedSphere` shows a minimal animated property, `Parameters/InteractiveParameters`
+adds on-screen torus controls, and `Sharing/SharedDefinitions` shares one expression
+between independently parameterized objects.
 
-AnimatedBoolean and InteractiveParameters derive from `FidgetMesh<T>`. Each
-component defines its expression in `Define` and exposes ordinary C# properties
-such as `CutterOffset` and `MajorRadius`. No initialization or compilation calls
-are required in these examples. SharedShapeInstances creates shared components,
-positions them, and animates their `Radius` properties. Sharing and stream
-lifetimes are handled by the runtime.
+Scenes and scripts follow the same capability folders:
 
-The lit examples request expression-derived surface normals, with hard transitions
-selected from Fidget's branch traces. See the package README for face-classification
-limitations. The included URP Flat Preview shader
-is an alternative that needs only positions and indices.
+- **Solids**: capsules, cones, rings, prisms, polyhedra, rounded solids and thickened surfaces.
+- **Profiles**: rectangles, triangles, polygons, stars, lenses, curves and decorative profiles.
+- **Construction**: extrusion, revolution, lofting and blended extrusion.
+- **Combinations**: smooth, rounded and chamfered joins, columns, stairs and surface features.
+- **Transforms**: twist, bend, displacement, elongation, rounding and shells.
+- **Repetition**: axes, grids, finite intervals, mirrors, symmetry, folding and polar copies.
 
-The repository's examples/unity project already has this URP pipeline configured.
-Its Assets/FidgetExamples folder is the source for these packaged samples.
+Each feature scene compares a few related recipes. Each displayed recipe has its
+own `FidgetMesh<T>`, fitted sampling bounds and Inspector control. GameObject
+transforms arrange the display; unrelated shapes never share a display union.
+The repetition and CSG recipes combine shapes when demonstrating those operations.
+Profiles use thin extrusions so they can be meshed.
 
-The Shape Library scene can be recreated with **Fidget > Create Shape Library Sample**.
-Its profiles compile once; property changes update bound parameters. The repeated
-field is clipped to a box before meshing so its output stays inside explicit bounds.
+Select a shape during Play and change its Inspector property. `Define` registers
+that property with `shape.Parameter`, so the mesh updates without rebuilding its
+expression. Change Detail to adjust resolution. Bounds cover the demonstrated
+parameter range; adjust Bounds and rebuild when extending a recipe.
 
-The ShapeLibrary assemblies require package 0.4.0 or later; MercurySdf requires
-0.5.0 or later. Unity skips an assembly when its required package is unavailable,
-so the other examples continue to compile. Both reusable libraries live in the
-package Runtime; these sample components only build demonstration expressions.
-Mercury's copyright and MIT notice are included in the package's ThirdPartyNotices.md.
+All modelling methods belong to `ShapeBuilder`. See the package's `SdfModelling.md`
+for conventions and distance guarantees. Source attributions and Mercury's MIT
+notice are included in `ThirdPartyNotices.md`.
 
-## Expanded modelling examples (package 0.7.0)
+The Editor tools create scenes through Unity's scene API and fit each mesh's
+bounds across its parameter range. Close any feature scene you intend to recreate,
+then use **Fidget > Create Feature Examples**. The four introductory scenes are
+maintained separately. To validate a feature scene through Unity CLI eval:
 
-Open these scenes in `Scenes/`:
+```csharp
+return FidgetExamples.Editor.ExampleValidation.Run("Solids/Cones");
+```
 
-- **SdfSolids**: 11 focused components covering rounded solids, cones/frusta,
-  capsules, rings, prisms, polyhedra, power norms, spherical cuts, thickened open
-  surfaces, cheap/exact rounding comparisons, and approximate fields.
-- **SdfProfiles**: 11 components covering rectangle variants, triangles,
-  regular polygons, adjustable stars, circular and lens profiles, crosses,
-  decorative profiles, closest-point curves, architecture and wave strokes.
-- **SdfOperations**: 12 components covering smooth/round/chamfer/column/stair
-  joins, pipe/engrave/groove/tongue features, deformation, lattice and polar
-  repetition, identifiers, finite intervals, folds, extrusion, lofting and elongation.
-
-Each component in `SdfModelling/` is a small `FidgetMesh<T>` recipe with an editable
-Inspector property. A cell contains several related recipes; `GalleryLayout`
-only places them and gives 2D profiles an extrusion. There is no runtime mode
-selector. Press Play and select a cell to change its radius, angle, stroke,
-count or deformation strength. Counts should be integers. Increasing Detail may
-be necessary for fine strokes or large column/stair counts.
-
-`Fidget/Create Expanded SDF Samples` recreates the three scenes through Editor
-APIs. `SdfGalleryValidation.Run("SdfSolids")` (or the other scene names) checks
-native meshes, normals, bounds and live parameter changes without graph rebuilds,
-and renders a preview under `target/sdf-gallery-checks/` when run in this checkout.
-The Mercury sample remains available and uses the same unified builder API;
-its primitive component retains the twisted dodecahedron experiment.
+This checks nonempty meshes, finite vertices and surface normals, updates without
+graph rebuilds, and bounds margins at five parameter settings. Rendered previews
+are written beneath `target/example-checks` when run in the source repository.

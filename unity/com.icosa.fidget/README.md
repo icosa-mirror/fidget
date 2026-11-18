@@ -237,16 +237,20 @@ Invalid arguments and native failures produce descriptive managed exceptions.
 
 ## Examples
 
-1. **Animated Boolean**: a cylinder cuts a rounded box. Its component derives from
-   `FidgetMesh<AnimatedBoolean>` and defines the expression in `Define`.
-2. **Interactive Parameters**: change a torus through Inspector controls or bind
-   UI sliders to its setters. Regenerates only when parameters change.
-3. **Shared Shape Instances**: one shared component definition, independent properties and
-   jobs for multiple objects. Shows explicit lifetime management with `MeshStream`.
+Import **Examples** from Package Manager. Scenes and recipe scripts are grouped
+by capability: Basics, Parameters, Sharing, Solids, Profiles, Construction,
+Combinations, Transforms and Repetition. Start with `Scenes/Basics/Primitives`
+or `Scenes/Combinations/AnimatedSubtraction`.
 
-`ChangingSphere` lives with the imported example scripts. It derives from
-`FidgetMesh<ChangingSphere>`, defines a sphere, and animates its `Radius` property.
-`SphereMeshStream` remains available as a lower-level runtime API.
+Feature scenes compare related operations, with a separate `FidgetMesh<T>` and
+fitted sampling bounds for each displayed recipe. Layout uses GameObject
+transforms. Change a shape's Inspector property in Play mode to update its mesh
+without rebuilding the expression. Profiles are shown as thin extrusions.
+
+`Parameters/InteractiveParameters` adds torus sliders, `Sharing/SharedDefinitions`
+shares one definition between independent components, and `Basics/AnimatedSphere`
+shows a minimal animated property. See the sample README and `SdfModelling.md`
+for the full scene guide and modelling conventions.
 
 ## Data path
 
