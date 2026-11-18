@@ -1,6 +1,6 @@
-ABI: 5
+ABI: 6
 Target: x86_64-linux-android
-Source commit: 657ba31885276d0c8b7dc510a2cf9527acd8a1c9
+Source commit: f95e92a3175bf6c18719678bc1c1ab27a1276771
 Working tree dirty: False
 rustc 1.95.0 (59807616e 2026-04-14)
 binary: rustc

@@ -6,7 +6,7 @@ namespace Icosa.Fidget
 {
     internal static unsafe class Native
     {
-        internal const uint AbiVersion = 5;
+        internal const uint AbiVersion = 6;
 
         [StructLayout(LayoutKind.Sequential)]
         internal struct Node

@@ -1,12 +1,12 @@
-ABI: 5
+ABI: 6
 Target: aarch64-apple-ios
-Source commit: 657ba31885276d0c8b7dc510a2cf9527acd8a1c9
+Source commit: f95e92a3175bf6c18719678bc1c1ab27a1276771
 Working tree dirty: False
 rustc 1.95.0 (59807616e 2026-04-14)
 binary: rustc
 commit-hash: 59807616e1fa2540724bfbac14d7976d7e4a3860
 commit-date: 2026-04-14
-host: aarch64-apple-darwin
+host: x86_64-apple-darwin
 release: 1.95.0
 LLVM version: 22.1.2
 
