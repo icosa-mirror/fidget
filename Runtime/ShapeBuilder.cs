@@ -58,6 +58,11 @@ namespace Icosa.Fidget
         public static Expression operator *(Expression a, Expression b) => Binary(13, a, b);
         public static Expression operator /(Expression a, Expression b) => Binary(14, a, b);
         public static Expression operator -(Expression value) => value.Unary(5);
+        /// <summary>Clamp a scalar to the inclusive range.</summary>
+        public Expression Clamp(Expression lower, Expression upper) => Max(lower).Min(upper);
+        public Expression Saturate() => Clamp(0, 1);
+        /// <summary>Returns -1 below zero and +1 otherwise, including at zero.</summary>
+        public Expression SignNonZero() => LessThan(0).Select(-1, 1);
         public Expression Abs() => Unary(6);
         public Expression Sqrt() => Unary(7);
         public Expression Square() => Unary(8);

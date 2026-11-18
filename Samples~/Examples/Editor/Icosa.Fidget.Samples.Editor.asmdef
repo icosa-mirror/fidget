@@ -1,0 +1,21 @@
+{
+  "name": "Icosa.Fidget.Samples.Editor",
+  "rootNamespace": "FidgetExamples.Editor",
+  "references": [
+    "Icosa.Fidget",
+    "Icosa.Fidget.Samples"
+  ],
+  "includePlatforms": [
+    "Editor"
+  ],
+  "defineConstraints": [
+    "FIDGET_BUILDER_SDF"
+  ],
+  "versionDefines": [
+    {
+      "name": "com.icosa.fidget",
+      "expression": "0.7.0",
+      "define": "FIDGET_BUILDER_SDF"
+    }
+  ]
+}

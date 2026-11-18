@@ -36,34 +36,33 @@ namespace Icosa.Fidget.Editor
             }
         }
 
-        /// <summary>Check IQ's fixed matrix transform using Unity's matrix implementation and worker path.</summary>
-        public static string RunIq()
+        /// <summary>Check the unified builder matrix transform using Unity's matrix implementation and worker path.</summary>
+        public static string RunModelling()
         {
             var builder = new ShapeBuilder();
-            var p = IqSdf.Point(builder);
             var center = new Vector3(0.2f, -0.1f, 0.15f);
             var matrix = Matrix4x4.TRS(center, Quaternion.Euler(0, 0, 90), Vector3.one);
-            var root = IqSdf.opTx(p, matrix, q => IqSdf.sdBox(q, new Expression3(0.25f, 0.5f, 0.35f)));
+            var root = builder.Transform(builder.BoxExact(new Expression3(0.25f, 0.5f, 0.35f)), matrix);
             using (var shape = builder.Compile(root))
             using (var stream = new MeshStream(shape, new MeshSettings(new Bounds(Vector3.zero, Vector3.one * 3), 6, MeshNormals.Surface)))
             {
-                Check(stream.TrySchedule(shape.CreateParameters()), "Could not schedule IQ transform probe");
+                Check(stream.TrySchedule(shape.CreateParameters()), "Could not schedule builder transform probe");
                 var deadline = DateTime.UtcNow.AddSeconds(30);
                 while (!stream.TryApply())
                 {
-                    if (DateTime.UtcNow > deadline) throw new TimeoutException("IQ transform mesh did not finish");
+                    if (DateTime.UtcNow > deadline) throw new TimeoutException("builder transform mesh did not finish");
                     Thread.Sleep(1);
                 }
-                Check(stream.VertexCount > 0 && stream.TriangleCount > 0, "Empty IQ transform mesh");
-                Check((stream.Mesh.bounds.center - center).magnitude < 0.06f, "IQ transform did not preserve translation");
-                Check((stream.Mesh.bounds.size - new Vector3(1, 0.5f, 0.7f)).magnitude < 0.08f, "IQ transform did not rotate the box dimensions");
-                Check(stream.Mesh.normals.Length == stream.VertexCount, "IQ transform did not produce surface normals");
+                Check(stream.VertexCount > 0 && stream.TriangleCount > 0, "Empty builder transform mesh");
+                Check((stream.Mesh.bounds.center - center).magnitude < 0.06f, "builder transform did not preserve translation");
+                Check((stream.Mesh.bounds.size - new Vector3(1, 0.5f, 0.7f)).magnitude < 0.08f, "builder transform did not rotate the box dimensions");
+                Check(stream.Mesh.normals.Length == stream.VertexCount, "builder transform did not produce surface normals");
             }
             bool rejected = false;
-            try { IqSdf.opTx(p, Matrix4x4.zero, q => IqSdf.sdSphere(q, 1)); }
+            try { builder.Transform(builder.Sphere(1), Matrix4x4.zero); }
             catch (ArgumentException) { rejected = true; }
-            Check(rejected, "IQ transform accepted a singular matrix");
-            return "PASS: IQ matrix transform, worker meshing, bounds, surface normals, and invalid-transform rejection";
+            Check(rejected, "builder transform accepted a singular matrix");
+            return "PASS: builder matrix transform, worker meshing, bounds, surface normals, and invalid-transform rejection";
         }
 
         private static void Apply(SphereMeshStream stream, float radius, int depth)

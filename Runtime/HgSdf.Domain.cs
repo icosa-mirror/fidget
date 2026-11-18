@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace Icosa.Fidget
 {
-    public static partial class HgSdf
+    internal static partial class HgSdf
     {
         public static void pR(ref Expression2 p, Expression a) => p = cos(a)*p + sin(a)*new Expression2(p.y,-p.x);
         public static void pR45(ref Expression2 p) => p = (p+new Expression2(p.y,-p.x))*Mathf.Sqrt(0.5f);

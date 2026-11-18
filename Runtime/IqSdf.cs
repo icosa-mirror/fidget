@@ -7,7 +7,7 @@ using UnityEngine;
 namespace Icosa.Fidget
 {
     /// <summary>IQ distance functions. Names and parameter conventions follow the source articles.</summary>
-    public static partial class IqSdf
+    internal static partial class IqSdf
     {
         public static Expression3 Point(ShapeBuilder shape) => new Expression3(shape.X,shape.Y,shape.Z);
         private static Expression min(Expression a,Expression b) => a.Min(b);
@@ -197,7 +197,7 @@ namespace Icosa.Fidget
         {
             p=abs(p);var f=clamp((la*p.x-lb*p.z+lb*lb)/(la*la+lb*lb),0,1);
             var w=p.xz-new Expression2(la,lb)*new Expression2(f,1-f);
-            var q=new Expression2(length(w)*sign(w.x)-ra,p.y-h);
+            var q=new Expression2(length(w)*w.x.SignNonZero()-ra,p.y-h);
             return min(max(q.x,q.y),0)+length(max(q,0));
         }
         public static Expression sdOctahedron(Expression3 p,Expression s)
