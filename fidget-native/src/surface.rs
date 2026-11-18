@@ -156,10 +156,10 @@ impl SurfaceWorkspace {
                 // Frozen absolute-value branches can oppose a dynamic sign
                 // comparison at corners a few ulps across the surface. Keep
                 // the analytic direction in the face-interior hemisphere.
-                if let Some(reference) = interior_normal {
-                    if normal.dot(&reference) < 0.0 {
-                        normal = -normal;
-                    }
+                if let Some(reference) = interior_normal
+                    && normal.dot(&reference) < 0.0
+                {
+                    normal = -normal;
                 }
                 // Treat signed zeros as equal; no angular/position tolerance is used.
                 for n in normal.iter_mut() {
