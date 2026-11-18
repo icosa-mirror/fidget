@@ -40,7 +40,7 @@ jobs:
             os: windows-2022
             smoke: true
           - target: aarch64-apple-darwin
-            os: macos-15
+            os: macos-26
             smoke: true
           - target: x86_64-apple-darwin
             os: macos-15-intel
@@ -49,10 +49,10 @@ jobs:
             os: ubuntu-22.04
             smoke: true
           - target: aarch64-apple-ios
-            os: macos-15
+            os: macos-15-intel
             smoke: false
           - target: aarch64-apple-ios-sim
-            os: macos-15
+            os: macos-15-intel
             smoke: false
           - target: aarch64-linux-android
             os: ubuntu-22.04
