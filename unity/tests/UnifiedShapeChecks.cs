@@ -6,8 +6,68 @@ using UnityEngine;
 
 static partial class ShapeLibraryChecks
 {
+    static void UnifiedApiCompilation()
+    {
+        // Exercise every modelling constructor/operation, including optional out identifiers.
+        var files = new[] { "ShapePrimitives.cs", "ShapeOperations.cs" };
+        var apiNames = files.SelectMany(file => System.Text.RegularExpressions.Regex.Matches(
+            System.IO.File.ReadAllText("unity/com.icosa.fidget/Runtime/" + file), @"public Expression (\w+)\(")
+            .Select(match => match.Groups[1].Value)).ToHashSet();
+        int compiled = 0;
+        foreach (var method in typeof(ShapeBuilder).GetMethods().Where(m => apiNames.Contains(m.Name)))
+        {
+            var s = new ShapeBuilder();
+            object Argument(ParameterInfo parameter)
+            {
+                string name = parameter.Name;
+                var type = parameter.ParameterType;
+                if (parameter.IsOut) return null;
+                if (type == typeof(Expression))
+                {
+                    if (name == "shape" || name == "a") return s.Sphere(0.7f);
+                    if (name == "b" || name == "cutout" || name == "cutter" || name == "guide") return s.Translate(s.Sphere(0.5f), new Vector3(0.4f, 0, 0));
+                    return (Expression)(name switch {
+                        "firstCell" => -2f, "lastCell" => 2f, "lower" => -0.5f, "upper" => 0.5f,
+                        "count" or "points" => 5f, "indentation" => 3f, "exponent" => 4f,
+                        "curvature" => 0.6f, "bulge" => 0.6f, "centerDistance" => 1.2f,
+                        "roundingRadius" or "thickness" or "halfThickness" or "edgeWidth" or "chamfer" or "inset" => 0.1f,
+                        "cutHeight" => 0.2f, "radius" => 0.6f, "halfAngle" => 0.8f,
+                        "offset" => 0f, "startRadius" or "lowerRadius" => 0.5f,
+                        "endRadius" or "upperRadius" => 0.25f, "scale" => 1.3f,
+                        _ => 0.7f });
+                }
+                if (type == typeof(Expression2)) return name switch {
+                    "a" or "start" => new Expression2(-0.7f, -0.2f),
+                    "b" or "end" => new Expression2(0.7f, -0.2f),
+                    "c" or "control" => new Expression2(0.1f, 0.8f),
+                    _ => new Expression2(1, 0.8f) };
+                if (type == typeof(Expression3)) return name switch {
+                    "a" or "start" => new Expression3(-0.7f, -0.2f, 0),
+                    "b" or "end" => new Expression3(0.7f, -0.2f, 0),
+                    "c" => new Expression3(0.7f, 0.8f, 0),
+                    "d" => new Expression3(-0.7f, 0.8f, 0),
+                    _ => new Expression3(1, 0.8f, 0.7f) };
+                if (type == typeof(Expression4)) return new Expression4(0.1f);
+                if (type == typeof(Expression2[])) return new[] { new Expression2(-1, 0), new Expression2(1, 0), new Expression2(0, 1) };
+                if (type == typeof(Vector3)) return name == "lower" ? new Vector3(-1, -1, -1) : name == "upper" ? Vector3.one : Vector3.up;
+                if (type == typeof(Vector2)) return name == "lower" ? new Vector2(-1, -1) : new Vector2(1, 1);
+                if (type == typeof(int)) return name == "firstDirection" ? 3 : 6;
+                throw new Exception("No unified API fixture for " + parameter);
+            }
+            try
+            {
+                var args = method.GetParameters().Select(Argument).ToArray();
+                using (s.Compile((Expression)method.Invoke(s, args))) { }
+                compiled++;
+            }
+            catch (Exception ex) { throw new Exception("Unified constructor failed: " + method, ex); }
+        }
+        Console.WriteLine($"PASS: {compiled} unified constructor/operation overloads compiled natively");
+    }
+
     static void UnifiedChecks()
     {
+        UnifiedApiCompilation();
         var s = new ShapeBuilder();
         var origin = Vector3.zero;
         // Independent geometric checks for changed conventions, not merely port-to-facade equality.
