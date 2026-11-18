@@ -121,11 +121,11 @@ namespace Icosa.Fidget
             p.x=abs(p.x);p-=2*max(dot(v1,p),0)*v1;p-=2*max(dot(v2,p),0)*v2;p.x=abs(p.x);p.y-=r;
             return length(p-v3*clamp(dot(p,v3),0,0.726542528f*r))*sign(p.y*v3.x-p.x*v3.y);
         }
-        public static Expression sdStar(Expression2 p,Expression r,int n,Expression m)
+        public static Expression sdStar(Expression2 p,Expression r,Expression n,Expression m)
         {
-            if(n<3) throw new ArgumentOutOfRangeException(nameof(n));
-            float an=3.141593f/n;var en=3.141593f/m;
-            var acs=new Expression2(Mathf.Cos(an),Mathf.Sin(an));var ecs=new Expression2(cos(en),sin(en));
+            if(n.Owner == null && n.Constant < 3) throw new ArgumentOutOfRangeException(nameof(n));
+            var an=3.141593f/n;var en=3.141593f/m;
+            var acs=new Expression2(cos(an),sin(an));var ecs=new Expression2(cos(en),sin(en));
             var bn=mod(atan(p.x,p.y),2*an)-an;
             p=length(p)*new Expression2(cos(bn),abs(sin(bn)));p-=r*acs;
             p+=ecs*clamp(-dot(p,ecs),0,r*acs.y/ecs.y);return length(p)*sign(p.x);

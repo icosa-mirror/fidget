@@ -127,6 +127,7 @@ static partial class ShapeLibraryChecks
         Reject(() => s.ExtrudeZ(new ShapeBuilder().Circle(1), -1, 1));
         // Also exercise the native graph compiler with the actual emitted nodes.
         using (s.Compile(s.Union(s.ExtrudeZ(profile, -1, 1), repeat, loft))) { }
+        UnifiedChecks();
         IqChecks();
         HgChecks();
         Console.WriteLine($"PASS: {count} shape/parameter/ownership checks and native graph compilation");

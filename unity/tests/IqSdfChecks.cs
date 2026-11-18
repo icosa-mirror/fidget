@@ -166,7 +166,8 @@ static partial class ShapeLibraryChecks
         try
         {
             var bounds=new Native.Bounds { Min=new Vector3(-1.5f,-1.5f,-1.5f),Max=new Vector3(1.5f,1.5f,1.5f) };
-            Native.Check(Native.fidget_mesher_generate(mesher,null,0,in bounds,5,out mesh),"IQ "+name);
+            fixed (float* parameters = shape.Defaults)
+                Native.Check(Native.fidget_mesher_generate(mesher,parameters,(uint)shape.Defaults.Length,in bounds,5,out mesh),"IQ "+name);
             Native.Check(Native.fidget_mesh_prepare_surface_normals(mesher,mesh),"IQ normals "+name);
             Native.Check(Native.fidget_mesh_get_counts(mesh,out var counts),"IQ counts "+name);
             if(counts.Vertices==0||counts.Indices==0) throw new Exception("Empty IQ mesh: "+name);
