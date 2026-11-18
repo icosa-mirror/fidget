@@ -21,15 +21,17 @@ project includes the usual Unity packages and Unity Pipeline for Editor automati
 The new **ShapeLibrary** scene demonstrates the standard library through four
 small components: `ExtrudedBlend`, `LoftedProfile`, `RevolvedProfile`, and
 `RepeatedShape`. Each derives from `FidgetMesh<T>` and exposes Inspector properties,
-just like AnimatedBoolean. The pinned package includes version 0.5.0 / ABI 6,
-so all four examples and the Mercury library are available. Their assemblies are skipped when imported into a project using an
-older package version.
-
+just like AnimatedBoolean. The pinned package includes version 0.6.0 / ABI 6,
+so all four examples and both SDF libraries are available. Their assemblies are
+skipped when imported into a project using an older package version.
 
 **MercurySdf** adds six focused components for cones and capsules, rounded and
 chamfered joins, columns, stairs, and polar repetition. The reusable `HgSdf` API,
 expression vectors, and standard shape library all live in the UPM package's
 Runtime folder. Samples only contain example definitions and scene tooling.
+The separate `IqSdf` API adds the 2D/3D functions and operators from Inigo
+Quilez's articles, retaining their own conventions alongside `HgSdf`. Its guide
+is included as `IqSdf.md` in the package.
 Mercury attribution and its MIT notice ship in the package's `ThirdPartyNotices.md`.
 
 For local development, build and assemble a complete package, then temporarily
@@ -93,11 +95,11 @@ On Windows with Unity 6000.6.0f1 / URP 17.6.0:
 Native CI builds all eight desktop/mobile architectures. These checks do not
 establish Unity player, IL2CPP, or device performance on every target platform.
 
-On macOS ARM64 with Unity 6000.6.0f1 / URP 17.6.0, the ABI 5 ShapeLibrary scene
+On macOS ARM64 with Unity 6000.6.0f1 / URP 17.6.0, the ShapeLibrary scene
 passed Editor worker-meshing checks for all four components, surface normal
 output, bound parameter updates, finite vertices within bounds, and a rendered
 preview. These checks cover both the locally assembled package and the published
-ABI 5 package pinned by this project. Reproduce with
+package currently pinned by this project. Reproduce with
 `FidgetExamples.Editor.ShapeLibraryValidation.Run()` through Unity CLI eval.
 
 The Mercury port is checked against the original GLSL with 81,534 numeric
@@ -105,3 +107,9 @@ comparisons covering all 74 exported overloads and both odd/even repetition
 counts. On macOS ARM64 / Unity 6000.6.0f1, all six Mercury scene meshes passed
 surface-normal, bounds, parameter-update, and preview checks. Reproduce with
 `FidgetExamples.Editor.MercurySdfValidation.Run()` through Unity CLI eval.
+
+The IQ release checks cover 102 standalone overloads, 6,120 seeded spatial
+probes, independent primitive and curve distances, and six native meshes with
+surface normals. Unity's matrix-based `opTx` is additionally checked with
+`Icosa.Fidget.Editor.IntegrationCheck.RunIq()` (transformed bounds, worker output,
+normals, and rejection of a singular transform).

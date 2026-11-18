@@ -72,7 +72,7 @@ def main():
         if not git(checkout, 'diff', '--cached', '--name-only', capture=True):
             print(f'{branch}: package already current')
             continue
-        git(checkout, 'commit', '-m', f'Publish Fidget {version} from native CI run {args.run_id}')
+        git(checkout, 'commit', '-m', f'Keep UPM consumers on matching Fidget {version} libraries from native CI run {args.run_id}')
         # A normal fast-forward push preserves history and rejects concurrent changes.
         git(checkout, 'push', 'origin', f'HEAD:refs/heads/{branch}')
         print(f'{branch}: {git(checkout, "rev-parse", "HEAD", capture=True)}')
