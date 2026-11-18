@@ -1,15 +1,15 @@
 ABI: 6
 Target: aarch64-apple-darwin
-Source commit: f95e92a3175bf6c18719678bc1c1ab27a1276771
+Source commit: 0cbaa3420d9dc5e8d0f9b8b5f6cc4289a535f748
 Working tree dirty: False
 rustc 1.95.0 (59807616e 2026-04-14)
 binary: rustc
 commit-hash: 59807616e1fa2540724bfbac14d7976d7e4a3860
 commit-date: 2026-04-14
-host: aarch64-apple-darwin
+host: x86_64-apple-darwin
 release: 1.95.0
 LLVM version: 22.1.2
 
 Native static libs: 
-Desktop C smoke executed: True
+Desktop C smoke executed: False
 iOS C probe linked: False

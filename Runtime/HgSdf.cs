@@ -7,7 +7,7 @@ using UnityEngine;
 namespace Icosa.Fidget
 {
     /// <summary>Mercury hg_sdf formulas as Fidget expressions. Angles are radians.</summary>
-    public static partial class HgSdf
+    internal static partial class HgSdf
     {
         public const float PI = Mathf.PI;
         public const float TAU = 2 * PI;

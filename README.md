@@ -149,30 +149,36 @@ freeing resources a job still uses. An overload accepts a per-request depth.
    separate render vertices; geometric positions and triangles are unchanged.
    Singular corner gradients (for example cone tips) use the selected face's
    interior gradient; if that is singular too, it uses finite differences of
-   the selected branch. There is no crease-angle threshold. This is recovered face classification,
+   the selected branch. If that branch is locally constant at a zero-sign
+   boundary, finite differences of the original field recover the face-interior
+   limit. Corner gradients are oriented into the face-interior hemisphere so
+   signed-distance branches do not flip normals across floating-point surface
+   offsets. This requires an additional gradient evaluation per face. There is no crease-angle threshold. This is recovered face classification,
    not provenance exported by the mesher: a triangle spanning a branch boundary
    cannot represent that transition exactly. It adds expression evaluation,
    normal storage, and potentially more render vertices. The rounded-box Boolean
    example has been visually reviewed; this is not a universal hard-edge guarantee.
 
-### Inigo Quilez distance functions
+### Shape modelling
 
-[IqSdf](IqSdf.md) is a separate library of the 2D and 3D `sd*` functions and `op*`
-operators from Inigo Quilez's distance-function articles. It deliberately retains
-primitives that overlap Mercury, with each source's own argument conventions.
-Use `IqSdf.Point(shape)` for coordinates and compose the returned expressions.
-The IQ API ships in package Runtime alongside `HgSdf` and `ShapeLibrary`.
-Package 0.6.0 uses the same ABI 6 native libraries as the Mercury port.
+[ShapeBuilder modelling](SdfModelling.md) covers solids, XY profiles, exact-distance
+alternatives, surface features, joins, repetition and deformations in the same
+expression-first API. The formulas from Mercury hg_sdf and Inigo Quilez are
+available through `ShapeBuilder` and `ShapeBuilder<T>`; package 0.7.0 removes the
+separate public `HgSdf` and `IqSdf` APIs. Native ABI remains 6.
 
-### Mercury hg_sdf
+```csharp
+var box = shape.RoundedBox(new Expression3(0.6f, 0.8f, 0.4f), radius);
+return shape.TwistY(box, twist);
+```
 
-[Mercury hg_sdf](HgSdf.md) provides the complete primitive, domain, and combination
-function set as expression builders. Use `HgSdf.Point(shape)` for coordinates,
-then call the original functions such as `fCone`, `fCapsule`, `fBox`,
-`fOpUnionRound`, and `pModPolar`. Package 0.5.0 requires ABI 6 native libraries.
-The **Mercury SDF** sample scene uses six small `FidgetMesh<T>` components with
-editable Inspector properties. Mercury's copyright and MIT notice are included
-in [ThirdPartyNotices.md](ThirdPartyNotices.md).
+Existing methods retain their behavior. Use `BoxExact`, `RectangleExact`,
+`CylinderExact`, `ExtrudeZExact` and `ScaleUniformExact` when subsequent operations
+need Euclidean distance values. The Mercury-named sample scene now uses the
+unified API, including the parameterized twisted dodecahedron experiment.
+See the [IQ migration guide](IqSdf.md) and [Mercury migration guide](HgSdf.md)
+for source-function mappings. Attribution and Mercury's MIT notice remain in
+[ThirdPartyNotices.md](ThirdPartyNotices.md).
 
 ### Standard shape library
 
@@ -231,16 +237,20 @@ Invalid arguments and native failures produce descriptive managed exceptions.
 
 ## Examples
 
-1. **Animated Boolean**: a cylinder cuts a rounded box. Its component derives from
-   `FidgetMesh<AnimatedBoolean>` and defines the expression in `Define`.
-2. **Interactive Parameters**: change a torus through Inspector controls or bind
-   UI sliders to its setters. Regenerates only when parameters change.
-3. **Shared Shape Instances**: one shared component definition, independent properties and
-   jobs for multiple objects. Shows explicit lifetime management with `MeshStream`.
+Import **Examples** from Package Manager. Scenes and recipe scripts are grouped
+by capability: Basics, Parameters, Sharing, Solids, Profiles, Construction,
+Combinations, Transforms and Repetition. Start with `Scenes/Basics/Primitives`
+or `Scenes/Combinations/AnimatedSubtraction`.
 
-`ChangingSphere` lives with the imported example scripts. It derives from
-`FidgetMesh<ChangingSphere>`, defines a sphere, and animates its `Radius` property.
-`SphereMeshStream` remains available as a lower-level runtime API.
+Feature scenes compare related operations, with a separate `FidgetMesh<T>` and
+fitted sampling bounds for each displayed recipe. Layout uses GameObject
+transforms. Change a shape's Inspector property in Play mode to update its mesh
+without rebuilding the expression. Profiles are shown as thin extrusions.
+
+`Parameters/InteractiveParameters` adds torus sliders, `Sharing/SharedDefinitions`
+shares one definition between independent components, and `Basics/AnimatedSphere`
+shows a minimal animated property. See the sample README and `SdfModelling.md`
+for the full scene guide and modelling conventions.
 
 ## Data path
 
