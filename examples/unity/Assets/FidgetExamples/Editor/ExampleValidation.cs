@@ -23,6 +23,7 @@ namespace FidgetExamples.Editor
                     vertices += result.vertexCount;
                     var before = result.vertices;
                     var parameters = mesh.Parameters;
+                    if (entry.Property == null) continue; // Fixed motifs have no shape parameter.
                     var property = entry.Type.GetProperty(entry.Property);
                     var original = property.GetValue(mesh);
                     var bounds = (Bounds)entry.Type.GetField("Bounds").GetValue(mesh);
