@@ -93,6 +93,11 @@ static partial class ShapeLibraryChecks
         Near(Value(s.Box(1, 1, 1), new Vector3(2, 2, 2)), 1);
         Near(Value(s.BoxExact(new Expression3(1)), new Vector3(2, 2, 2)), MathF.Sqrt(3));
         Near(Value(s.RectangleExact(1, 1), new Vector3(2, 2, 0)), MathF.Sqrt(2));
+        Near(Value(s.Pyramid(0.5f, 0.5f), new Vector3(0, -0.5f, 0)), 0);
+        Near(Value(s.Pyramid(0.5f, 0.5f), new Vector3(0, -0.49f, 0)), -0.01f);
+        Near(Value(s.Pyramid(0.5f, 0.5f), new Vector3(0, -0.7f, 0)), 0.2f);
+        Near(Value(s.Pyramid(0.5f, 0.5f), new Vector3(0, 0.7f, 0)), 0.2f);
+        Near(Value(s.EllipsoidBound(new Expression3(0.5f, 0.65f, 0.35f)), origin), -0.35f);
         Near(Value(s.Cylinder(1, 1), new Vector3(2, 2, 0)), 1);
         Near(Value(s.CylinderExact(1, 1), new Vector3(2, 2, 0)), MathF.Sqrt(2));
         Near(Value(s.ExtrudeZExact(s.Circle(1), -1, 1), new Vector3(2, 0, 2)), MathF.Sqrt(2));
@@ -152,6 +157,8 @@ static partial class ShapeLibraryChecks
         NativeIqMesh(s, s.SolidAngle(0.65f, 0.8f), "builder solid angle");
         NativeIqMesh(s, s.ExtrudeZExact(s.Intersect(s.ParabolaSegment(0.6f, 0.5f), s.RectangleExact(0.65f, 0.6f)), -0.12f, 0.12f), "builder parabola segment");
         NativeIqMesh(s, s.ExtrudeZExact(s.Intersect(s.Hyperbola(0.12f, 0.7f), s.RectangleExact(0.6f, 0.6f)), -0.12f, 0.12f), "builder hyperbola");
+        NativeIqMesh(s, s.Pyramid(0.5f, 0.5f), "builder centered pyramid");
+        NativeIqMesh(s, s.EllipsoidBound(new Expression3(0.5f, 0.65f, 0.35f)), "builder centered ellipsoid");
         NativeIqMesh(s, s.HexagonalPrism(0.5f, 0.4f), "builder hexagonal prism");
         NativeIqMesh(s, s.TriangularPrism(0.5f, 0.4f), "builder triangular prism");
         NativeIqMesh(s, s.RhombusPrism(0.5f, 0.4f, 0.35f, 0.1f), "builder rhombus prism");
@@ -161,6 +168,6 @@ static partial class ShapeLibraryChecks
         Reject(() => s.TwistY(new ShapeBuilder().Sphere(1), 1));
         Reject(() => s.ExtrudeZExact(new ShapeBuilder().Circle(1), -1, 1));
         Reject(() => s.Round(new ShapeBuilder().Sphere(1), 0.1f));
-        Console.WriteLine("PASS: unified builder distance, orientation, dimensions, subtraction, repetition identifiers, adjustable count and eighteen native mesh checks");
+        Console.WriteLine("PASS: unified builder distance, orientation, dimensions, subtraction, repetition identifiers, adjustable count and twenty native mesh checks");
     }
 }

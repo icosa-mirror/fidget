@@ -108,9 +108,31 @@ namespace Icosa.Fidget
         public Expression Octahedron(Expression extent) => IqSdf.sdOctahedron(Position, extent);
         public Expression OctahedronBound(Expression extent) => IqSdf.sdOctahedronBound(Position, extent);
         /// <summary>Square pyramid with base at Y=-halfHeight and tip at Y=+halfHeight; halfWidth sets its square base half extent.</summary>
-        public Expression Pyramid(Expression halfWidth, Expression halfHeight) => IqSdf.sdPyramid(new Expression3(X, Y + halfHeight, Z) / (2 * halfWidth), halfHeight / halfWidth) * (2 * halfWidth);
-        /// <summary>Distance bound, not Euclidean distance. Radii must be positive; origin retains the source singularity.</summary>
-        public Expression EllipsoidBound(Expression3 radii) => IqSdf.sdEllipsoid(Position, radii);
+        public Expression Pyramid(Expression halfWidth, Expression halfHeight)
+        {
+            var a = new Expression3(-halfWidth, -halfHeight, -halfWidth);
+            var b = new Expression3(halfWidth, -halfHeight, -halfWidth);
+            var c = new Expression3(halfWidth, -halfHeight, halfWidth);
+            var d = new Expression3(-halfWidth, -halfHeight, halfWidth);
+            var tip = new Expression3(0, halfHeight, 0);
+            var side = (2 * halfHeight * X.Abs().Max(Z.Abs()) + halfWidth * (Y - halfHeight)) /
+                (4 * halfHeight * halfHeight + halfWidth * halfWidth).Sqrt();
+            var planes = side.Max(-Y - halfHeight);
+            // Interior plane distances give exact signs and finite derivatives on
+            // faces. Exterior distances include the base and all four side triangles.
+            var surface = QuadSurface(a, b, c, d)
+                .Min(TriangleSurface(a, b, tip)).Min(TriangleSurface(b, c, tip))
+                .Min(TriangleSurface(c, d, tip)).Min(TriangleSurface(d, a, tip));
+            return planes.GreaterThan(0).Select(surface, planes);
+        }
+        /// <summary>Distance bound, not Euclidean distance. Radii must be positive; the center uses the nearest axial surface distance.</summary>
+        public Expression EllipsoidBound(Expression3 radii)
+        {
+            // IQ's ratio is 0/0 at the origin. Supply the actual center distance
+            // so a centered sampling grid cannot introduce a NaN into the mesh.
+            return Position.LengthSquared().GreaterThan(0).Select(
+                IqSdf.sdEllipsoid(Position, radii), -radii.MinComponent());
+        }
         /// <summary>Unsigned distance to an open 3D triangle with non-collinear vertices.</summary>
         public Expression TriangleSurface(Expression3 a, Expression3 b, Expression3 c) => IqSdf.udTriangle(Position, a, b, c);
         /// <summary>Unsigned distance to an open planar convex quad in perimeter order.</summary>
