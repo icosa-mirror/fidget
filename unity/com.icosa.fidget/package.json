@@ -1,6 +1,6 @@
 {
   "name": "com.icosa.fidget",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "displayName": "Fidget Native Meshing",
   "description": "Parameterized implicit shapes and worker-job meshing into Unity MeshData.",
   "unity": "6000.3",
@@ -8,7 +8,7 @@
   "samples": [
     {
       "displayName": "Examples",
-      "description": "Animated Booleans, interactive parameters, shared shapes, the standard shape library, and Mercury hg_sdf. Each component defines its shape in C#.",
+      "description": "Animated Booleans, interactive parameters, shared shapes, the standard shape library, Mercury hg_sdf, and Inigo Quilez distance functions. Each component defines its shape in C#.",
       "path": "Samples~/Examples"
     }
   ]

@@ -22,3 +22,13 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+# Inigo Quilez distance-function formulas
+
+`Runtime/IqSdf*.cs` adapts the formulas supplied from Inigo Quilez's articles:
+
+- https://iquilezles.org/articles/distfunctions/
+- https://iquilezles.org/articles/distfunctions2d/
+
+Credit for those formulas belongs to Inigo Quilez. Source-specific conventions
+and the port's adjustments are documented in `IqSdf.md`.

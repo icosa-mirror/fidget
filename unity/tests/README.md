@@ -18,3 +18,10 @@ and cell IDs, against the original numeric GLSL formulas. The pinned reference (
 source is `hg-sdf/hg_sdf.glsl`; regenerate the numeric C# oracle with
 `python3 unity/tests/hg-sdf/generate_reference.py`. Its comments retain Mercury's
 copyright and MIT notice. The generator changes syntax/types, not the formulas.
+
+IQ checks cover all 102 computational overloads available to the standalone
+harness, native graph compilation, independent primitive distances, numerical
+ellipse/Bezier closest-point checks, and six native meshes with surface normals.
+The fixed seed keeps results reproducible. Unity's matrix-based `opTx` is checked
+in the Editor probe. These checks validate the port, not universal conditioning
+of every source formula or device/player compatibility.

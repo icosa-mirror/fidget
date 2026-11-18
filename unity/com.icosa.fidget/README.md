@@ -155,6 +155,15 @@ freeing resources a job still uses. An overload accepts a per-request depth.
    normal storage, and potentially more render vertices. The rounded-box Boolean
    example has been visually reviewed; this is not a universal hard-edge guarantee.
 
+### Inigo Quilez distance functions
+
+[IqSdf](IqSdf.md) is a separate library of the 2D and 3D `sd*` functions and `op*`
+operators from Inigo Quilez's distance-function articles. It deliberately retains
+primitives that overlap Mercury, with each source's own argument conventions.
+Use `IqSdf.Point(shape)` for coordinates and compose the returned expressions.
+The IQ API ships in package Runtime alongside `HgSdf` and `ShapeLibrary`.
+Package 0.6.0 uses the same ABI 6 native libraries as the Mercury port.
+
 ### Mercury hg_sdf
 
 [Mercury hg_sdf](HgSdf.md) provides the complete primitive, domain, and combination
