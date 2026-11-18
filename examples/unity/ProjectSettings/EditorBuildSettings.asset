@@ -1,0 +1,21 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1045 &1
+EditorBuildSettings:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Scenes:
+  - enabled: 1
+    path: Assets/FidgetExamples/Scenes/Combinations/AnimatedSubtraction.unity
+    guid: d57c76d1595b3ba48bb419a37e29153f
+  - enabled: 1
+    path: Assets/FidgetExamples/Scenes/Parameters/InteractiveParameters.unity
+    guid: bd8d654df73a6454d9e8d81060af581c
+  - enabled: 1
+    path: Assets/FidgetExamples/Scenes/Sharing/SharedDefinitions.unity
+    guid: 401cad096e0e139408b8fdf4d52cd42c
+  - enabled: 1
+    path: Assets/FidgetExamples/Scenes/Basics/AnimatedSphere.unity
+    guid: d1030d3133d8d5c4eb609120416ea549
+  m_configObjects:
+    com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 289c1b55c9541489481df5cc06664110, type: 3}

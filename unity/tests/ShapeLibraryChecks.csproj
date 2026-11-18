@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <OutputPath>../../target/shape-checks/bin/</OutputPath>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="ShapeLibraryChecks.cs;UnifiedShapeChecks.cs;HgSdfChecks.cs;IqSdfChecks.cs;hg-sdf/*.cs" />
+    <Compile Include="../com.icosa.fidget/Runtime/IqSdf*.cs;../com.icosa.fidget/Runtime/HgSdf*.cs;../com.icosa.fidget/Runtime/ExpressionVectors.cs;../com.icosa.fidget/Runtime/ShapeBuilder.cs;../com.icosa.fidget/Runtime/ShapeLibrary.cs;../com.icosa.fidget/Runtime/ShapePrimitives.cs;../com.icosa.fidget/Runtime/ShapeOperations.cs;../com.icosa.fidget/Runtime/TypedShape.cs;../com.icosa.fidget/Runtime/CompiledShape.cs;../com.icosa.fidget/Runtime/Native.cs" />
+    <Reference Include="UnityEngine.CoreModule"><HintPath>$(UnityManagedPath)/UnityEngine/UnityEngine.CoreModule.dll</HintPath></Reference>
+  </ItemGroup>
+</Project>
