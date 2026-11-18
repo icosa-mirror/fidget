@@ -9,12 +9,9 @@ namespace FidgetExamples
         [field: SerializeField, Range(0.07f, 0.2f)] public float Radius { get; set; } = 0.12f;
         protected override Expression Define(ShapeBuilder<MercuryPolar> shape)
         {
-            var p = HgSdf.Point(shape);
-            var radial = p.xz;
-            HgSdf.pModPolar(ref radial, shape.Parameter(mesh => mesh.Repetitions));
-            p.xz = radial;
-            p.x -= 0.65f;
-            return HgSdf.fCapsule(p, shape.Parameter(mesh => mesh.Radius), 0.3f);
+            var capsule = shape.Translate(shape.Capsule(shape.Parameter(mesh => mesh.Radius), 0.3f),
+                                          new Vector3(0.65f, 0, 0));
+            return shape.RepeatPolarY(capsule, shape.Parameter(mesh => mesh.Repetitions));
         }
     }
 }

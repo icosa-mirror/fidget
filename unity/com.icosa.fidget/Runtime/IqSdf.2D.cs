@@ -4,7 +4,7 @@ using UnityEngine;
 
 namespace Icosa.Fidget
 {
-    public static partial class IqSdf
+    internal static partial class IqSdf
     {
         public static Expression sdCircle(Expression2 p,Expression r) => length(p)-r;
         public static Expression sdRoundedBox(Expression2 p,Expression2 b,Expression4 r)
@@ -40,7 +40,7 @@ namespace Icosa.Fidget
         public static Expression sdRhombus(Expression2 p,Expression2 b)
         {
             b.y=-b.y;p=abs(p);var h=clamp((dot(b,p)+b.y*b.y)/dot(b,b),0,1);
-            p-=b*new Expression2(h,h-1);return length(p)*sign(p.x);
+            p-=b*new Expression2(h,h-1);return length(p)*p.x.SignNonZero();
         }
         public static Expression sdTrapezoid(Expression2 p,Expression r1,Expression r2,Expression he)
         {

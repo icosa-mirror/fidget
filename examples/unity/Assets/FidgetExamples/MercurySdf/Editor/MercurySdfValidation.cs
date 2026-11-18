@@ -32,7 +32,7 @@ namespace FidgetExamples.Editor
                 if (camera == null) throw new Exception("Sample setup incomplete");
                 foreach (var root in scene.GetRootGameObjects())
                 {
-                    if (root.TryGetComponent<MercuryPrimitives>(out var primitives)) counts[0] = Validate(primitives, r => primitives.ConeRadius = r);
+                    if (root.TryGetComponent<MercuryPrimitives>(out var primitives)) counts[0] = Validate(primitives, r => primitives.Bob = r);
                     if (root.TryGetComponent<MercuryRound>(out var round)) counts[1] = Validate(round, r => round.Radius = r);
                     if (root.TryGetComponent<MercuryChamfer>(out var chamfer)) counts[2] = Validate(chamfer, r => chamfer.Radius = r);
                     if (root.TryGetComponent<MercuryColumns>(out var columns)) counts[3] = Validate(columns, r => columns.Radius = r);
@@ -64,7 +64,7 @@ namespace FidgetExamples.Editor
             bool changed = before.Length != after.Length;
             for (int i = 0; !changed && i < before.Length; ++i) changed = (before[i] - after[i]).sqrMagnitude > 0.000001f;
             if (!changed) throw new Exception("Parameter update did not change " + example.name);
-            setRadius(example is MercuryPolar ? 0.12f : example is MercuryPrimitives ? 0.4f : 0.35f); Apply(example);
+            setRadius(example is MercuryPolar ? 0.12f : example is MercuryPrimitives ? 1f : 0.35f); Apply(example);
             foreach (var vertex in example.Stream.Mesh.vertices)
                 if (!example.Bounds.Contains(vertex)) throw new Exception("Sample vertex outside bounds");
             return count;

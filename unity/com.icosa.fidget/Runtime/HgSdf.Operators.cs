@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace Icosa.Fidget
 {
-    public static partial class HgSdf
+    internal static partial class HgSdf
     {
         public static Expression fOpUnionChamfer(Expression a, Expression b, Expression r) => min(min(a,b),(a-r+b)*Mathf.Sqrt(0.5f));
         public static Expression fOpIntersectionChamfer(Expression a, Expression b, Expression r) => max(max(a,b),(a+r+b)*Mathf.Sqrt(0.5f));

@@ -4,7 +4,7 @@ using UnityEngine;
 
 namespace Icosa.Fidget
 {
-    public static partial class IqSdf
+    internal static partial class IqSdf
     {
         public static Expression opRevolution(Expression3 p,Func<Expression2,Expression> primitive,Expression o) => primitive(new Expression2(length(p.xz)-o,p.y));
         public static Expression opExtrusion(Expression3 p,Func<Expression2,Expression> primitive,Expression h)

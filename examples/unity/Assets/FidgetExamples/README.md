@@ -52,3 +52,31 @@ The ShapeLibrary assemblies require package 0.4.0 or later; MercurySdf requires
 so the other examples continue to compile. Both reusable libraries live in the
 package Runtime; these sample components only build demonstration expressions.
 Mercury's copyright and MIT notice are included in the package's ThirdPartyNotices.md.
+
+## Expanded modelling examples (package 0.7.0)
+
+Open these scenes in `Scenes/`:
+
+- **SdfSolids**: 11 focused components covering rounded solids, cones/frusta,
+  capsules, rings, prisms, polyhedra, power norms, spherical cuts, thickened open
+  surfaces, cheap/exact rounding comparisons, and approximate fields.
+- **SdfProfiles**: 11 components covering rectangle variants, triangles,
+  regular polygons, adjustable stars, circular and lens profiles, crosses,
+  decorative profiles, closest-point curves, architecture and wave strokes.
+- **SdfOperations**: 12 components covering smooth/round/chamfer/column/stair
+  joins, pipe/engrave/groove/tongue features, deformation, lattice and polar
+  repetition, identifiers, finite intervals, folds, extrusion, lofting and elongation.
+
+Each component in `SdfModelling/` is a small `FidgetMesh<T>` recipe with an editable
+Inspector property. A cell contains several related recipes; `GalleryLayout`
+only places them and gives 2D profiles an extrusion. There is no runtime mode
+selector. Press Play and select a cell to change its radius, angle, stroke,
+count or deformation strength. Counts should be integers. Increasing Detail may
+be necessary for fine strokes or large column/stair counts.
+
+`Fidget/Create Expanded SDF Samples` recreates the three scenes through Editor
+APIs. `SdfGalleryValidation.Run("SdfSolids")` (or the other scene names) checks
+native meshes, normals, bounds and live parameter changes without graph rebuilds,
+and renders a preview under `target/sdf-gallery-checks/` when run in this checkout.
+The Mercury sample remains available and uses the same unified builder API;
+its primitive component retains the twisted dodecahedron experiment.

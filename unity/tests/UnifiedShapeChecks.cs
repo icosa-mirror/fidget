@@ -67,9 +67,28 @@ static partial class ShapeLibraryChecks
 
     static void UnifiedChecks()
     {
+        if (typeof(IqSdf).IsPublic || typeof(HgSdf).IsPublic)
+            throw new Exception("Source-specific APIs must remain internal");
         UnifiedApiCompilation();
         var s = new ShapeBuilder();
         var origin = Vector3.zero;
+        Near(Value(s.Rhombus(0.5f, 0.4f), new Vector3(0, 0.7f, 0)), 0.3f);
+        Near(Value(s.RhombusPrism(0.5f, 0.4f, 0.35f, 0.1f), new Vector3(0, 0, 0.7f)), 0.2f);
+        Near(Value(s.HexagonalPrism(1, 0.5f), new Vector3(0, 0, 1)), 0);
+        Near(Value(s.HexagonalPrismBound(1, 0.5f), new Vector3(0, 0, 1)), 0);
+        Near(Value(s.TriangularPrism(1, 0.5f), new Vector3(0, 0, 1)), 0);
+        Near(Value(s.TriangularPrismBound(1, 0.5f), new Vector3(0, 0, 1)), 0);
+        Near(Value(s.Pyramid(0.5f, 0.8f), new Vector3(0, 0.8f, 0)), 0);
+        Near(Value(s.Pyramid(0.5f, 0.8f), new Vector3(0, -0.8f, 0)), 0);
+        Near(Value(s.RoundedX(0.7f, 0.15f), new Vector3(0.7f, 0.55f, 0)), 0);
+        Near(Value(s.RingSector(1, MathF.PI / 2, 0.2f), new Vector3(0, 1, 0)), -0.1f);
+        if (Value(s.RingSector(1, MathF.PI / 2, 0.2f), new Vector3(0, -1, 0)) <= 0)
+            throw new Exception("Ring sector faces the wrong direction");
+        Near(Value(new Expression3(s.X, s.Y, s.Z).LengthSquared(), new Vector3(1, 2, 3)), 14);
+        Near(Value(new Expression3(1, s.Y, 3).MinComponent(), new Vector3(0, 2, 0)), 1);
+        Near(Value(new Expression3(1, s.Y, 3).MaxComponent(), new Vector3(0, 2, 0)), 3);
+        Near(Value(s.Y.SignNonZero(), Vector3.zero), 1);
+        Near(Value(new Expression3(1, 0, 0).Cross(new Expression3(0, 1, 0)).z, origin), 1);
         // Independent geometric checks for changed conventions, not merely port-to-facade equality.
         Near(Value(s.Box(1, 1, 1), new Vector3(2, 2, 2)), 1);
         Near(Value(s.BoxExact(new Expression3(1)), new Vector3(2, 2, 2)), MathF.Sqrt(3));
@@ -123,11 +142,25 @@ static partial class ShapeLibraryChecks
         Near(Value(sector, new Vector3(0.7f, 0, 0), 5), 0);
         NativeIqMesh(s, s.ExtrudeZExact(star, -0.2f, 0.2f), "builder adjustable star");
         NativeIqMesh(s, s.TwistY(s.BoxExact(new Expression3(0.5f, 0.7f, 0.4f)), 0.7f), "builder twisted box");
+        NativeIqMesh(s, s.ExtrudeZExact(s.Vesica(0.25f, 0.6f), -0.12f, 0.12f), "builder tall vesica");
+        NativeIqMesh(s, s.ExtrudeZExact(s.Vesica(new Expression2(-0.45f, -0.2f), new Expression2(0.45f, 0.2f), 0.25f), -0.12f, 0.12f), "builder oriented vesica");
+        NativeIqMesh(s, s.ExtrudeZExact(s.Moon(0.6f, 0.5f, 0.3f), -0.12f, 0.12f), "builder moon");
+        NativeIqMesh(s, s.ExtrudeZExact(s.Horseshoe(0.45f, 1.4f, new Expression2(0.3f, 0.1f)), -0.12f, 0.12f), "builder horseshoe");
+        NativeIqMesh(s, s.CutSphere(0.6f, 0.1f), "builder cut sphere");
+        NativeIqMesh(s, s.CutHollowSphere(0.6f, 0.1f, 0.09f), "builder cut hollow sphere");
+        NativeIqMesh(s, s.SphereCavity(0.6f, 0.45f, 0.45f), "builder sphere cavity");
+        NativeIqMesh(s, s.SolidAngle(0.65f, 0.8f), "builder solid angle");
+        NativeIqMesh(s, s.ExtrudeZExact(s.Intersect(s.ParabolaSegment(0.6f, 0.5f), s.RectangleExact(0.65f, 0.6f)), -0.12f, 0.12f), "builder parabola segment");
+        NativeIqMesh(s, s.ExtrudeZExact(s.Intersect(s.Hyperbola(0.12f, 0.7f), s.RectangleExact(0.6f, 0.6f)), -0.12f, 0.12f), "builder hyperbola");
+        NativeIqMesh(s, s.HexagonalPrism(0.5f, 0.4f), "builder hexagonal prism");
+        NativeIqMesh(s, s.TriangularPrism(0.5f, 0.4f), "builder triangular prism");
+        NativeIqMesh(s, s.RhombusPrism(0.5f, 0.4f, 0.35f, 0.1f), "builder rhombus prism");
+        NativeIqMesh(s, s.Cylinder(new Expression3(-0.4f, -0.4f, 0), new Expression3(0.4f, 0.4f, 0), 0.25f), "builder endpoint cylinder caps");
         NativeIqMesh(s, s.RoundedBox(new Expression3(0.6f), 0.15f), "builder rounded box");
         NativeIqMesh(s, s.Frustum(0.6f, 0.25f, 0.7f), "builder frustum");
         Reject(() => s.TwistY(new ShapeBuilder().Sphere(1), 1));
         Reject(() => s.ExtrudeZExact(new ShapeBuilder().Circle(1), -1, 1));
         Reject(() => s.Round(new ShapeBuilder().Sphere(1), 0.1f));
-        Console.WriteLine("PASS: unified builder distance, orientation, dimensions, subtraction, repetition identifiers, adjustable count and four native mesh checks");
+        Console.WriteLine("PASS: unified builder distance, orientation, dimensions, subtraction, repetition identifiers, adjustable count and eighteen native mesh checks");
     }
 }

@@ -107,34 +107,44 @@ impl SurfaceWorkspace {
                             // centroid is singular too; sample the selected
                             // branch symmetrically to recover a finite normal.
                             let step = centroid.abs().max().max(1.0) * 1e-4;
-                            for axis in 0..3 {
-                                let mut hi = centroid;
-                                let mut lo = centroid;
-                                hi[axis] += step;
-                                lo[axis] -= step;
-                                let (a, _) = self
-                                    .point
-                                    .eval_with_vars(
-                                        point_branch,
-                                        hi.x,
-                                        hi.y,
-                                        hi.z,
-                                        values,
-                                    )
-                                    .ok()?;
-                                let (b, _) = self
-                                    .point
-                                    .eval_with_vars(
-                                        point_branch,
-                                        lo.x,
-                                        lo.y,
-                                        lo.z,
-                                        values,
-                                    )
-                                    .ok()?;
-                                n[axis] = (a - b) / (2.0 * step);
+                            // A signed-distance formula may select a zero-valued
+                            // sign branch exactly on a planar face. That trace is
+                            // locally constant even though the full field has a
+                            // valid derivative across the face. Try the full field
+                            // only after the selected branch cannot recover one.
+                            for sample_tape in [point_branch, &tape] {
+                                for axis in 0..3 {
+                                    let mut hi = centroid;
+                                    let mut lo = centroid;
+                                    hi[axis] += step;
+                                    lo[axis] -= step;
+                                    let (a, _) = self
+                                        .point
+                                        .eval_with_vars(
+                                            sample_tape,
+                                            hi.x,
+                                            hi.y,
+                                            hi.z,
+                                            values,
+                                        )
+                                        .ok()?;
+                                    let (b, _) = self
+                                        .point
+                                        .eval_with_vars(
+                                            sample_tape,
+                                            lo.x,
+                                            lo.y,
+                                            lo.z,
+                                            values,
+                                        )
+                                        .ok()?;
+                                    n[axis] = (a - b) / (2.0 * step);
+                                }
+                                len = n.norm();
+                                if len.is_finite() && len > 0.0 {
+                                    break;
+                                }
                             }
-                            len = n.norm();
                             if !len.is_finite() || len == 0.0 {
                                 return None;
                             }
@@ -291,6 +301,46 @@ mod tests {
             );
         }
     }
+    #[test]
+    fn zero_sign_branch_on_a_planar_face_uses_the_full_field_limit() {
+        // sign(y) * abs(y) is exactly y. Trace simplification at y=0
+        // nevertheless selects a constant zero sign and loses that derivative.
+        let (x, y, z) = Tree::axes();
+        let signed_plane = y.clone().compare(0.0) * y.clone().abs();
+        let shape = VmShape::from(
+            signed_plane
+                .max(x.abs() - 0.6)
+                .max(z.abs() - 0.6)
+                .max(-y - 0.5),
+        );
+        let values = ShapeVars::new();
+        let input = Octree::build(
+            &shape.bind(&values).unwrap(),
+            &Settings {
+                depth: 5,
+                threads: None,
+                ..Default::default()
+            },
+        )
+        .unwrap()
+        .walk_dual();
+        let triangle_count = input.triangles.len();
+        let (output, normals) = SurfaceWorkspace::default()
+            .prepare(&shape, &values, input)
+            .expect("valid signed-plane normal limit");
+        assert_eq!(triangle_count, output.triangles.len());
+        let mut top_vertices = 0;
+        for (p, n) in output.vertices.iter().zip(normals) {
+            assert!(n.iter().all(|v| v.is_finite()));
+            assert!((n.norm() - 1.0).abs() < 1e-5);
+            if p.y.abs() < 1e-6 && p.x.abs() < 0.5 && p.z.abs() < 0.5 {
+                assert!(n.y > 0.9999, "wrong planar normal at {p:?}: {n:?}");
+                top_vertices += 1;
+            }
+        }
+        assert!(top_vertices > 0);
+    }
+
     #[test]
     fn capsule_poles_use_the_face_interior_gradient() {
         // Mercury's exact mix formula has a 0 * undefined radial derivative

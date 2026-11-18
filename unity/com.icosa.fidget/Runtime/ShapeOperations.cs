@@ -71,11 +71,18 @@ namespace Icosa.Fidget
         public Expression SymmetryZ(Expression shape) => Remap(shape, X, Y, Z.Abs());
         public Expression SymmetryXZ(Expression shape) => Remap(shape, X.Abs(), Y, Z.Abs());
         /// <summary>Reflect only the negative side of dot(normal,position)=offset. Normal is normalized.</summary>
+        public Expression Remap(Expression shape, Expression3 coordinates) => Remap(shape, coordinates.x, coordinates.y, coordinates.z);
         public Expression FoldPlane(Expression shape, Vector3 normal, Expression offset) => FoldPlane(shape, normal, offset, out _);
         public Expression FoldPlane(Expression shape, Vector3 normal, Expression offset, out Expression side)
         {
+            return FoldPlane(shape, (Expression3)UnitAxis(normal), offset, out side);
+        }
+        /// <summary>Fold with a parameterized normal; normal must remain nonzero.</summary>
+        public Expression FoldPlane(Expression shape, Expression3 normal, Expression offset) => FoldPlane(shape, normal, offset, out _);
+        public Expression FoldPlane(Expression shape, Expression3 normal, Expression offset, out Expression side)
+        {
             var p = Position;
-            side = HgSdf.pReflect(ref p, UnitAxis(normal), -offset);
+            side = HgSdf.pReflect(ref p, normal / normal.Length(), -offset);
             return Remap(shape, p.x, p.y, p.z);
         }
         public Expression MirrorX(Expression shape, Expression offset = default) => MirrorX(shape, offset, out _);
@@ -155,8 +162,8 @@ namespace Icosa.Fidget
         public Expression RepeatLimited(Expression shape, Expression3 spacing, Expression3 limit) => RepeatLimited(shape, spacing, limit, out _);
         public Expression RepeatLimited(Expression shape, Expression3 spacing, Expression3 limit, out Expression3 cell)
         {
-            Expression Index(Expression p, Expression s, Expression l) => ((p / s).Abs() + 0.5f).Floor() * (p / s).Compare(0).Max(-1).Min(1);
-            cell = new Expression3(Index(X, spacing.x, limit.x).Max(-limit.x).Min(limit.x), Index(Y, spacing.y, limit.y).Max(-limit.y).Min(limit.y), Index(Z, spacing.z, limit.z).Max(-limit.z).Min(limit.z));
+            Expression Index(Expression p, Expression s) => ((p / s).Abs() + 0.5f).Floor() * (p / s).Compare(0).Max(-1).Min(1);
+            cell = new Expression3(Index(X, spacing.x).Max(-limit.x).Min(limit.x), Index(Y, spacing.y).Max(-limit.y).Min(limit.y), Index(Z, spacing.z).Max(-limit.z).Min(limit.z));
             var p = Position - spacing * cell; return Remap(shape, p.x, p.y, p.z);
         }
         /// <summary>Repeat about Y in XZ. Count must remain a positive integer; cell is the angular sector identifier.</summary>
