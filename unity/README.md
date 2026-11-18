@@ -46,3 +46,13 @@ settings, runtime sources, preview, Editor integration check and license.
 
 See the [package README](com.icosa.fidget/README.md) for the ownership model,
 installation, usage and the current validation limits.
+
+Apple Silicon macOS and iOS libraries are cross-compiled on Intel macOS runners
+because hosted ARM runner shortages can prevent a complete package build. Before
+publishing, run the C smoke test and Unity Editor integration checks on an Apple
+Silicon host using the actual CI-built macOS ARM64 library. The CI build record
+correctly marks that target's desktop smoke execution as false; local runtime
+validation is an additional release check.
+
+Push and PR runs for the same source head share a concurrency group, retaining
+both checks while preventing them from competing for macOS runners.

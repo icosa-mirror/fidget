@@ -20,6 +20,12 @@ on:
     branches: [main]
     paths: *native_paths
 
+# Push and PR events for the same source head should not compete for scarce
+# macOS runners. Keep both checks, running them sequentially.
+concurrency:
+  group: native-${{ github.event.pull_request.head.sha || github.sha }}
+  cancel-in-progress: false
+
 permissions:
   contents: read
 
@@ -39,9 +45,11 @@ jobs:
           - target: x86_64-pc-windows-msvc
             os: windows-2022
             smoke: true
+          # Cross-compile on Intel, like iOS. Validate this binary on an
+          # Apple Silicon host before UPM publication (see unity/README.md).
           - target: aarch64-apple-darwin
-            os: macos-26
-            smoke: true
+            os: macos-15-intel
+            smoke: false
           - target: x86_64-apple-darwin
             os: macos-15-intel
             smoke: true
