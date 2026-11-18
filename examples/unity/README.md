@@ -26,6 +26,10 @@ Start with `Basics/Primitives` and `Combinations/AnimatedSubtraction`.
 `Sharing/SharedDefinitions` uses `CreateSharedInstance` and animates independent
 radius properties.
 
+In `Repetition/Polar`, compare the single vent slot with the two patterned rotors.
+In Play mode, select either repeated rotor and change **Count** to set how many
+slots are cut around its local axis.
+
 Feature scenes show a small set of related recipes. **Each displayed recipe has
 its own mesh and fitted local sampling bounds.** GameObject transforms arrange
 the display; unrelated solids are never unioned merely to fit them into one

@@ -3,15 +3,16 @@ using UnityEngine;
 
 namespace FidgetExamples
 {
-    /// <summary>One independently meshed polar z recipe.</summary>
+    /// <summary>Cut a ring of ventilation slots around the local Z axis.</summary>
     public class PolarZExample : FidgetMesh<PolarZExample>
     {
-        [field: SerializeField, Range(3f, 10f)] public int Count { get; set; } = 7;
+        [field: SerializeField, Range(3f, 10f)] public int Count { get; set; } = 8;
         protected override Expression Define(ShapeBuilder<PolarZExample> s)
         {
-            var amount = s.Parameter(mesh => mesh.Count);
-            var tooth = s.Translate(s.Cone(0.08f, 0.14f), 0.5f, 0, 0);
-            return s.RepeatPolarZ(tooth, amount);
+            var count = s.Parameter(mesh => mesh.Count);
+            var disc = SingleSlotExample.Disc(s);
+            var slot = SingleSlotExample.Slot(s);
+            return s.Subtract(disc, s.RepeatPolarZ(slot, count));
         }
     }
 }

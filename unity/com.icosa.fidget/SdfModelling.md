@@ -159,7 +159,9 @@ an arbitrary input field exact.
 The existing `RepeatX` uses a **half-spacing radius**; `RepeatY` and `RepeatZ`
 follow that existing convention. `RepeatPolarY` repeats in XZ around Y;
 `RepeatPolarZ` repeats XY profiles around Z. Rotation/remapping can orient the
-specialized XY or X methods into other planes/axes.
+specialized XY or X methods into other planes/axes. In the `Repetition/Polar`
+sample, a single angled vent slot is the cutter. Repeating it before subtraction
+cuts a ring of slots spaced `360° / Count` apart.
 
 `RepeatLimited` takes per-axis spacing and a per-axis limit: cells run from
 `-limit` to `+limit`, inclusive. `RepeatIntervalX` accepts explicit first and last

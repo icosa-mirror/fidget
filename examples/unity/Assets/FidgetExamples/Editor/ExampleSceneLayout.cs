@@ -43,7 +43,7 @@ namespace FidgetExamples.Editor
             var rotation = Quaternion.Euler(entry.Profile ? 12 : 22, -15, 0);
             if (entry.Type == typeof(SphereCavityExample)) rotation = Quaternion.Euler(0, 60, 0);
             if (entry.Type == typeof(CutHollowSphereExample)) rotation = Quaternion.Euler(-55, 0, 0);
-            if (entry.Scene == "Repetition/Polar") rotation = Quaternion.Euler(-43, 12, 0);
+            if (entry.Scene == "Repetition/Polar") rotation = Quaternion.Euler(-38, 0, 0);
             if (entry.Scene == "Construction/ProfilesToSolids") rotation = Quaternion.Euler(-20, 45, 0);
             if (entry.Scene == "Transforms/Elongation") rotation = Quaternion.identity;
             float scale = 1.6f / Mathf.Max(bounds.size.x, bounds.size.y, bounds.size.z);
@@ -75,12 +75,6 @@ namespace FidgetExamples.Editor
                 probe.Readout.transform.position += Vector3.down * 0.22f;
                 probe.Readout.characterSize *= 0.8f;
                 probe.Refresh();
-            }
-            if (mesh is PolarYExample || mesh is PolarZExample)
-            {
-                var line = Line("Rotation axis", mesh.transform, material);
-                Vector3 axis = mesh is PolarYExample ? Vector3.up : Vector3.forward;
-                line.SetPositions(new[] { -axis * 0.7f, axis * 0.7f });
             }
             if (entry.Scene == "Construction/ProfilesToSolids")
             {
