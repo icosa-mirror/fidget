@@ -7,10 +7,14 @@ namespace FidgetExamples
     public class RoundedXExample : FidgetMesh<RoundedXExample>
     {
         [field: SerializeField, Range(0.06f, 0.2f)] public float Rounding { get; set; } = 0.12f;
+        [field: SerializeField, Range(0.2f, 0.98f)] public float Width { get; set; } = 0.6f;
+        [field: SerializeField, Range(0.04f, 0.32f)] public float HalfDepth { get; set; } = 0.12f;
         protected override Expression Define(ShapeBuilder<RoundedXExample> s)
         {
+            var halfDepth = s.Parameter(mesh => mesh.HalfDepth);
+            var width = s.Parameter(mesh => mesh.Width);
             var amount = s.Parameter(mesh => mesh.Rounding);
-            return s.ExtrudeZExact(s.RoundedX(0.6f, amount), -0.12f, 0.12f);
+            return s.ExtrudeZExact(s.RoundedX(width, amount), -halfDepth, halfDepth);
         }
     }
 }

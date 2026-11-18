@@ -7,11 +7,15 @@ namespace FidgetExamples
     public class SmoothUnionExample : FidgetMesh<SmoothUnionExample>
     {
         [field: SerializeField, Range(0.1f, 0.5f)] public float BlendRadius { get; set; } = 0.3f;
+        [field: SerializeField, Range(0.4f, 0.85f)] public float Radius { get; set; } = 0.5f;
+        [field: SerializeField, Range(0.1f, 0.32f)] public float HalfSeparation { get; set; } = 0.25f;
         protected override Expression Define(ShapeBuilder<SmoothUnionExample> s)
         {
+            var halfSeparation = s.Parameter(mesh => mesh.HalfSeparation);
+            var radius = s.Parameter(mesh => mesh.Radius);
             var amount = s.Parameter(mesh => mesh.BlendRadius);
-            var a = s.Translate(s.Sphere(0.5f), -0.25f, 0, 0);
-            var b = s.Translate(s.Sphere(0.5f), 0.25f, 0, 0);
+            var a = s.Translate(s.Sphere(radius), -halfSeparation, 0, 0);
+            var b = s.Translate(s.Sphere(radius), halfSeparation, 0, 0);
             return s.Blend(a, b, amount);
         }
     }

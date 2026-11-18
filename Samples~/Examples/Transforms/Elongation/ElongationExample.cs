@@ -6,7 +6,7 @@ namespace FidgetExamples
     /// <summary>One independently meshed elongation recipe.</summary>
     public class ElongationExample : FidgetMesh<ElongationExample>
     {
-        [field: SerializeField, Range(0.12f, 0.48f)] public float ElongationX { get; set; } = 0.3f;
+        [field: SerializeField, Range(0f, 0.76f)] public float ElongationX { get; set; } = 0.3f;
         protected override Expression Define(ShapeBuilder<ElongationExample> s)
         {
             var amount = s.Parameter(mesh => mesh.ElongationX);
