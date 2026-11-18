@@ -27,6 +27,10 @@ namespace Icosa.Fidget
                 case 15: return Mathf.Min(a.Constant, b.Constant);
                 case 16: return Mathf.Max(a.Constant, b.Constant);
                 // Match Fidget's rem_euclid, including negative dividends/divisors.
+                case 20: return Mathf.Atan2(a.Constant, b.Constant);
+                case 21: return a.Constant < b.Constant ? -1 : a.Constant > b.Constant ? 1 : 0;
+                case 22: return a.Constant == 0 ? a : b;
+                case 23: return a.Constant != 0 ? a : b;
                 default:
                     float remainder = a.Constant % b.Constant;
                     return remainder < 0 ? remainder + Mathf.Abs(b.Constant) : remainder;
@@ -42,7 +46,11 @@ namespace Icosa.Fidget
                 case 7: return Mathf.Sqrt(Constant);
                 case 8: return Constant * Constant;
                 case 9: return Mathf.Sin(Constant);
-                default: return Mathf.Cos(Constant);
+                case 10: return Mathf.Cos(Constant);
+                case 19: return Mathf.Floor(Constant);
+                case 24: return Constant == 0 ? 1 : 0;
+                case 25: return Mathf.Exp(Constant);
+                default: return Mathf.Log(Constant);
             }
         }
         public static Expression operator +(Expression a, Expression b) => Binary(11, a, b);
@@ -59,6 +67,33 @@ namespace Icosa.Fidget
         public Expression Max(Expression other) => Binary(16, this, other);
         /// <summary>Least non-negative remainder, matching Fidget Euclidean modulo.</summary>
         public Expression Modulo(Expression other) => Binary(18, this, other);
+        public Expression Floor() => Unary(19);
+        public Expression Atan2(Expression x) => Binary(20, this, x);
+        public Expression Compare(Expression other) => Binary(21, this, other);
+        public Expression And(Expression other) => Binary(22, this, other);
+        public Expression Or(Expression other) => Binary(23, this, other);
+        public Expression Not() => Unary(24);
+        public Expression Exp() => Unary(25);
+        public Expression Ln() => Unary(26);
+        public Expression LessThan(Expression other) => other.Compare(this).Max(0);
+        public Expression GreaterThan(Expression other) => Compare(other).Max(0);
+        public Expression EqualTo(Expression other) => Compare(other).Not();
+        public Expression LessThanOrEqual(Expression other) => GreaterThan(other).Not();
+        public Expression GreaterThanOrEqual(Expression other) => LessThan(other).Not();
+        /// <summary>Choose a value per evaluation point; zero is false. Unselected NaNs do not propagate.</summary>
+        public Expression Select(Expression whenTrue, Expression whenFalse) =>
+            // Add the masked branches: OR would discard the selected branch's
+            // derivative whenever its value is exactly zero (the mesh surface).
+            And(whenTrue) + Not().And(whenFalse);
+        /// <summary>Power for nonnegative bases and positive exponents (also defines 0^0 = 1).</summary>
+        public Expression Pow(Expression exponent)
+        {
+            if (Owner == null && exponent.Owner == null) return Mathf.Pow(Constant, exponent.Constant);
+            var zero = EqualTo(0);
+            var safeBase = zero.Select(1, this);
+            return zero.Select(exponent.EqualTo(0), (safeBase.Ln() * exponent).Exp());
+        }
+
     }
 
     /// <summary>A typed parameter key. Resolve it once; set its value without string lookup per frame.</summary>
@@ -96,7 +131,7 @@ namespace Icosa.Fidget
             if (value.Owner != this) throw new ArgumentException("Expressions must belong to the same ShapeBuilder.");
             return value.Index;
         }
-        internal Expression Node(uint op, Expression a, Expression b = default) => Add(new Native.Node { Opcode = op, A = Import(a), B = op >= 11 ? Import(b) : 0 });
+        internal Expression Node(uint op, Expression a, Expression b = default) => Add(new Native.Node { Opcode = op, A = Import(a), B = (op >= 11 && op <= 18) || (op >= 20 && op <= 23) ? Import(b) : 0 });
         /// <summary>Low-level unnamed parameter slot. Prefer ShapeBuilder&lt;T&gt; for typed model properties.</summary>
         public Parameter Parameter(float defaultValue = 0)
         {
