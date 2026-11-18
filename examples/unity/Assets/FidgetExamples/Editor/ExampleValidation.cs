@@ -7,6 +7,13 @@ namespace FidgetExamples.Editor
 {
     public static class ExampleValidation
     {
+        private static void CheckBounds(string name, Vector3[] vertices, Bounds bounds)
+        {
+            bounds.Expand(-0.015f);
+            foreach (var vertex in vertices)
+                if (!bounds.Contains(vertex)) throw new Exception(name + " reaches its sampling boundary");
+        }
+
         public static string Run(string name)
         {
             var entries = ExampleCatalog.Entries.Where(e => e.Scene == name).ToArray();
@@ -23,10 +30,11 @@ namespace FidgetExamples.Editor
                     vertices += result.vertexCount;
                     var before = result.vertices;
                     var parameters = mesh.Parameters;
+                    var bounds = (Bounds)entry.Type.GetField("Bounds").GetValue(mesh);
+                    CheckBounds(entry.Type.Name, before, bounds);
                     if (entry.Property == null) continue; // Fixed motifs have no shape parameter.
                     var property = entry.Type.GetProperty(entry.Property);
                     var original = property.GetValue(mesh);
-                    var bounds = (Bounds)entry.Type.GetField("Bounds").GetValue(mesh);
                     bool changed = false;
                     try
                     {
@@ -37,9 +45,7 @@ namespace FidgetExamples.Editor
                             var after = result.vertices;
                             changed |= before.Length != after.Length;
                             for (int j = 0; !changed && j < before.Length; j++) changed = (before[j] - after[j]).sqrMagnitude > 0.000001f;
-                            var interior = bounds; interior.Expand(-0.015f);
-                            foreach (var vertex in after)
-                                if (!interior.Contains(vertex)) throw new Exception(entry.Type.Name + " reaches its sampling boundary");
+                            CheckBounds(entry.Type.Name, after, bounds);
                             if (!ReferenceEquals(parameters, mesh.Parameters)) throw new Exception("Property change rebuilt the graph");
                         }
                     }

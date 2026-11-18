@@ -32,8 +32,8 @@ the display; unrelated solids are never unioned merely to fit them into one
 component. Repetition and CSG examples combine geometry only when that is the
 operation being demonstrated. Thin extrusions make the XY profiles visible.
 
-Every recipe derives from `FidgetMesh<T>` and overrides `Define`, with ordinary
-Inspector properties registered using `shape.Parameter`. Changing a property
+Each recipe derives from `FidgetMesh<T>` and overrides `Define`. Parameterized
+recipes bind their Inspector properties with `shape.Parameter`. Changing a property
 updates its mesh without rebuilding the expression. Detail defaults to 6 (7 for columns and stairs) and is
 adjustable. Bounds cover a sampled sweep of the demonstrated parameter range;
 when extending a recipe beyond those settings, adjust its Bounds and rebuild.

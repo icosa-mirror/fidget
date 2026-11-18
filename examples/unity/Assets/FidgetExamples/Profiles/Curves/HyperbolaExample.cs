@@ -10,7 +10,9 @@ namespace FidgetExamples
         protected override Expression Define(ShapeBuilder<HyperbolaExample> s)
         {
             var amount = s.Parameter(mesh => mesh.Curvature);
-            return s.ExtrudeZExact(s.Intersect(s.Hyperbola(amount, 0.7f), s.RectangleExact(0.6f, 0.6f)), -0.12f, 0.12f);
+            var stroke = s.Shell(s.Hyperbola(amount, 0.7f), 0.045f);
+            var window = s.RectangleExact(0.85f, 0.85f);
+            return s.ExtrudeZExact(s.Intersect(stroke, window), -0.12f, 0.12f);
         }
     }
 }

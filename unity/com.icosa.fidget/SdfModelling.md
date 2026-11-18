@@ -27,8 +27,8 @@ Import the Examples sample and browse `Scenes/` by capability: Basics,
 Parameters, Sharing, Solids, Profiles, Construction, Combinations, Transforms,
 and Repetition. Feature scenes such as `Solids/Cones`, `Profiles/Rectangles`,
 `Combinations/RoundedJoins` and `Repetition/Polar` compare a few related recipes.
-Each displayed recipe has its own `FidgetMesh<T>`, sampling bounds and Inspector
-control. Placement uses GameObject transforms; unrelated display shapes never
+Each displayed recipe has its own `FidgetMesh<T>` and sampling bounds.
+Parameterized recipes expose their shape controls in the Inspector. Placement uses GameObject transforms; unrelated display shapes never
 share a union or sampling volume. Profiles are extruded into thin solids.
 
 The scripts use the same folder structure as the scenes. Select a shape in Play

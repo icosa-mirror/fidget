@@ -98,6 +98,8 @@ static partial class ShapeLibraryChecks
         Near(Value(s.Pyramid(0.5f, 0.5f), new Vector3(0, -0.7f, 0)), 0.2f);
         Near(Value(s.Pyramid(0.5f, 0.5f), new Vector3(0, 0.7f, 0)), 0.2f);
         Near(Value(s.EllipsoidBound(new Expression3(0.5f, 0.65f, 0.35f)), origin), -0.35f);
+        Near(Value(s.Parabola(1.5f), new Vector3(0, -0.2f, 0)), 0.2f);
+        Near(Value(s.Parabola(1.5f), new Vector3(0, 0.1f, 0)), -0.1f);
         Near(Value(s.Cylinder(1, 1), new Vector3(2, 2, 0)), 1);
         Near(Value(s.CylinderExact(1, 1), new Vector3(2, 2, 0)), MathF.Sqrt(2));
         Near(Value(s.ExtrudeZExact(s.Circle(1), -1, 1), new Vector3(2, 0, 2)), MathF.Sqrt(2));

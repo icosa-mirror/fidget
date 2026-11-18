@@ -83,7 +83,7 @@ namespace FidgetExamples.Editor
             new Entry(typeof(HexagonExample), "Hexagon", "Profiles/Polygons", "Radius", 0.3f, 0.6f, true),
             new Entry(typeof(OctagonExample), "Octagon", "Profiles/Polygons", "Radius", 0.3f, 0.6f, true),
             new Entry(typeof(RhombusExample), "Rhombus", "Profiles/Polygons", "Radius", 0.3f, 0.6f, true),
-            new Entry(typeof(OctahedronExample), "Octahedron", "Solids/Polyhedra", "Radius", 0.25f, 0.6f, false),
+            new Entry(typeof(OctahedronExample), "Octahedron", "Solids/Polyhedra", "Radius", 0.25f, 0.65f, false),
             new Entry(typeof(DodecahedronExample), "Dodecahedron", "Solids/Polyhedra", "Radius", 0.25f, 0.6f, false),
             new Entry(typeof(IcosahedronExample), "Icosahedron", "Solids/Polyhedra", "Radius", 0.25f, 0.6f, false),
             new Entry(typeof(TruncatedOctahedronExample), "Truncated Octahedron", "Solids/Polyhedra", "Radius", 0.25f, 0.6f, false),

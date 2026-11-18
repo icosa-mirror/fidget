@@ -240,7 +240,11 @@ namespace Icosa.Fidget
         public static Expression sdParabola(Expression2 pos,Expression k)
         {
             pos.x=abs(pos.x);var ik=1/k;var p=ik*(pos.y-0.5f*ik)/3;var q=0.25f*ik*ik*pos.x;
-            var x=parabolaRoot(p,q);return length(pos-new Expression2(x,k*x*x))*sign(pos.x-x);
+            var x = parabolaRoot(p, q);
+            // The closest point can share the query's X coordinate anywhere on
+            // the symmetry axis. Determine the side from the parabola equation.
+            var side = (k * pos.x * pos.x - pos.y) * k;
+            return length(pos - new Expression2(x, k*x*x)) * side.SignNonZero();
         }
         public static Expression sdParabola(Expression2 pos,Expression wi,Expression he)
         {
