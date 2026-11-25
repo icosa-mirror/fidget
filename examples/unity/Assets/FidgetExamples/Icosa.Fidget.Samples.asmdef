@@ -10,6 +10,11 @@
   "versionDefines": [
     {
       "name": "com.icosa.fidget",
+      "expression": "0.8.0",
+      "define": "FIDGET_SAMPLING"
+    },
+    {
+      "name": "com.icosa.fidget",
       "expression": "0.7.0",
       "define": "FIDGET_BUILDER_SDF"
     }

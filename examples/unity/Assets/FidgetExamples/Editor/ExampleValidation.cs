@@ -17,6 +17,7 @@ namespace FidgetExamples.Editor
 
         public static string Run(string name)
         {
+            if (name == SamplingComparisonScene.Name) return SamplingComparisonScene.Validate();
             var entries = ExampleCatalog.Entries.Where(e => e.Scene == name).ToArray();
             if (entries.Length == 0) throw new ArgumentException(name);
             var scene = EditorSceneManager.OpenPreviewScene(ExampleSceneLayout.RootFolder() + "/Scenes/" + name + ".unity");
