@@ -40,6 +40,11 @@ impl<F: Function> Clone for RenderHandle<F> {
 }
 
 impl<F: Function> RenderHandle<F> {
+    /// The regional function, after any interval-based simplifications.
+    pub fn function(&self) -> &F {
+        self.shape.inner()
+    }
+
     /// Build a new [`RenderHandle`] for the given shape
     ///
     /// None of the tapes are populated here.
