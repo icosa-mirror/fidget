@@ -45,6 +45,7 @@
 //! ```
 #![warn(missing_docs)]
 
+mod adaptive;
 mod builder;
 mod cell;
 mod codegen;

@@ -193,7 +193,7 @@ fn main() {
     let (shape, values) = fixture();
     let shape = shape.bind(&values).unwrap();
     println!(
-        "depth,phase,mode,visited,triangles,median_ms,peak_rust_heap_bytes,max_field_residual,max_probe_distance"
+        "depth,phase,mode,visited,planar_leaves,curved_leaves,triangles,median_ms,peak_rust_heap_bytes,max_field_residual,max_probe_distance"
     );
     for depth in [6, 7, 8] {
         for phase in [0.0, 0.37, 0.81] {
@@ -206,20 +206,29 @@ fn main() {
             for (axis, scale) in [1.0, 0.5, 0.25].into_iter().enumerate() {
                 cfg.world_to_model[(axis, 3)] = edge * phase * scale;
             }
-            let mut times = [Vec::new(), Vec::new()];
+            let names = ["fixed", "planes", "error_0.008", "error_0.002"];
+            let mut times = names.map(|_| Vec::new());
             // Warm up, time five builds per mode, then run geometry checks
             // separately so their allocations do not influence timing.
             for run in 0..7 {
-                for mode in [run % 2, 1 - run % 2] {
+                for j in 0..names.len() {
+                    let mode = (run + j) % names.len();
                     let start_bytes = LIVE.load(Relaxed);
                     PEAK.store(start_bytes, Relaxed);
                     let start = Instant::now();
-                    let build = if mode == 0 {
-                        Octree::build_with_budget
-                    } else {
-                        Octree::build_adaptive_planes
-                    };
-                    let (tree, stats) = build(&shape, &cfg, 2_000_000).unwrap();
+                    let (tree, stats) = match mode {
+                        0 => Octree::build_with_budget(&shape, &cfg, 2_000_000),
+                        1 => Octree::build_adaptive_planes(
+                            &shape, &cfg, 2_000_000,
+                        ),
+                        _ => Octree::build_with_surface_error(
+                            &shape,
+                            &cfg,
+                            2_000_000,
+                            if mode == 2 { 0.008 } else { 0.002 },
+                        ),
+                    }
+                    .unwrap();
                     let mesh = tree.walk_dual();
                     let ms = start.elapsed().as_secs_f64() * 1000.0;
                     let peak = PEAK.load(Relaxed) - start_bytes;
@@ -229,10 +238,12 @@ fn main() {
                     if run == 6 {
                         times[mode].sort_by(f64::total_cmp);
                         let (residual, distance) = check(&mesh);
-                        let name = ["fixed", "planes"][mode];
+                        let name = names[mode];
                         println!(
-                            "{depth},{phase:.2},{name},{},{},{:.2},{peak},{residual:.6},{distance:.6}",
+                            "{depth},{phase:.2},{name},{},{},{},{},{:.2},{peak},{residual:.6},{distance:.6}",
                             stats.visited,
+                            stats.planar_leaves,
+                            stats.curved_leaves,
                             mesh.triangles.len(),
                             times[mode][2]
                         );

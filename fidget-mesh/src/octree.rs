@@ -9,6 +9,11 @@ use super::{
     qef::QuadraticErrorSolver,
     types::{Axis, CellMask, Corner, Edge},
 };
+use crate::{
+    adaptive::{GradientWorkspace, Patch},
+    cell::CellBounds,
+};
+use fidget_core::vm::VmFunction;
 use fidget_core::{
     eval::Function,
     render::{RenderHandle, RenderHints, ThreadPool},
@@ -19,6 +24,15 @@ use fidget_core::{
     types::Grad,
 };
 use std::collections::VecDeque;
+
+type PatchTest<F> = fn(
+    &mut GradientWorkspace,
+    &F,
+    CellBounds<3>,
+    Option<&nalgebra::Matrix4<f32>>,
+    &ShapeVars<f32>,
+    f32,
+) -> Option<Patch>;
 
 /// Sampling work performed by a budgeted octree build.
 #[derive(Debug, Default, Copy, Clone)]
@@ -31,6 +45,8 @@ pub struct BuildStats {
     pub finest_leaves: u32,
     /// Planar surface cells sampled above the finest depth.
     pub planar_leaves: u32,
+    /// Curved sheets accepted above the finest depth.
+    pub curved_leaves: u32,
 }
 
 /// A build stopped before it had a complete tree.
@@ -89,7 +105,7 @@ impl Octree {
         settings: &Settings,
         max_cells: u32,
     ) -> Result<(Self, BuildStats), BuildInterrupted> {
-        Self::build_budgeted_inner(b, settings, max_cells, None)
+        Self::build_budgeted_inner(b, settings, max_cells, None, None)
     }
 
     /// Experimental single-threaded VM sampler. A region can terminate early
@@ -100,7 +116,30 @@ impl Octree {
         settings: &Settings,
         max_cells: u32,
     ) -> Result<(Self, BuildStats), BuildInterrupted> {
-        use fidget_core::{compiler::RegOp, vm::VmFunction};
+        Self::build_vm(b, settings, max_cells, None)
+    }
+
+    /// Experimental VM sampler with a shape-local curved-patch error target.
+    /// Uses the fixed-depth search wherever a single sheet cannot be established.
+    /// # Panics
+    /// If the tolerance is non-finite or non-positive.
+    pub fn build_with_surface_error(
+        b: &BoundShape<VmFunction, f32>,
+        settings: &Settings,
+        max_cells: u32,
+        tolerance: f32,
+    ) -> Result<(Self, BuildStats), BuildInterrupted> {
+        assert!(tolerance.is_finite() && tolerance > 0.0);
+        Self::build_vm(b, settings, max_cells, Some(tolerance))
+    }
+
+    fn build_vm(
+        b: &BoundShape<VmFunction, f32>,
+        settings: &Settings,
+        max_cells: u32,
+        tolerance: Option<f32>,
+    ) -> Result<(Self, BuildStats), BuildInterrupted> {
+        use fidget_core::compiler::RegOp;
         fn plane(f: &VmFunction) -> bool {
             // A unary affine chain can include one absolute value (e.g.
             // abs(x) - width). With axis-aligned bounds, opposite signs
@@ -136,6 +175,10 @@ impl Octree {
             settings,
             max_cells,
             axis_aligned.then_some(plane),
+            axis_aligned.then_some((
+                tolerance.unwrap_or(0.0),
+                GradientWorkspace::classify as PatchTest<VmFunction>,
+            )),
         )
     }
 
@@ -144,11 +187,13 @@ impl Octree {
         settings: &Settings,
         max_cells: u32,
         plane: Option<fn(&F) -> bool>,
+        surface: Option<(f32, PatchTest<F>)>,
     ) -> Result<(Self, BuildStats), BuildInterrupted> {
         let mut eval = RenderHandle::new(b.shape().clone());
         let mut builder = OctreeBuilder::new(settings, b.vars());
         builder.max_cells = max_cells;
         builder.plane = plane;
+        builder.surface = surface;
         if !builder.recurse::<true>(
             &mut eval,
             CellIndex::default(),
@@ -588,6 +633,8 @@ pub(crate) struct OctreeBuilder<'a, F: Function + RenderHints> {
     max_cells: u32,
     stats: BuildStats,
     plane: Option<fn(&F) -> bool>,
+    surface: Option<(f32, PatchTest<F>)>,
+    gradients: GradientWorkspace,
     vars: &'a ShapeVars<f32>,
 
     eval_float_slice: ShapeBulkEval<F::FloatSliceEval>,
@@ -619,6 +666,8 @@ impl<'a, F: Function + RenderHints> OctreeBuilder<'a, F> {
             max_cells: 0,
             stats: BuildStats::default(),
             plane: None,
+            surface: None,
+            gradients: GradientWorkspace::default(),
             world_to_model,
             vars,
 
@@ -697,7 +746,7 @@ impl<'a, F: Function + RenderHints> OctreeBuilder<'a, F> {
                 && cell.depth + 4 >= usize::from(self.max_depth)
                 && i.lower().is_finite()
                 && i.upper().is_finite()
-                && self.plane.is_some_and(|test| test(sub_tape.function()))
+                && let Some(patch) = self.patch(sub_tape.function(), cell)
             {
                 let start = self.octree.verts.len();
                 let mut candidate = LeafHermiteData::default();
@@ -706,10 +755,14 @@ impl<'a, F: Function + RenderHints> OctreeBuilder<'a, F> {
                     // These six masks are the two end faces of each axis.
                     && matches!(leaf.mask.index(), 0x0f | 0xf0 | 0x33 | 0xcc | 0x55 | 0xaa)
                     && cell.bounds.contains(self.octree.verts[leaf.index])
+                    && self.check_patch(&patch, cell, leaf, sub_tape)
                 {
                     self.octree[cell] = Cell::Leaf(leaf);
                     *hermite = candidate;
-                    self.stats.planar_leaves += 1;
+                    match patch {
+                        Patch::Plane => self.stats.planar_leaves += 1,
+                        Patch::Sheet { .. } => self.stats.curved_leaves += 1,
+                    }
                     return true;
                 }
                 self.octree.verts.truncate(start);
@@ -724,6 +777,7 @@ impl<'a, F: Function + RenderHints> OctreeBuilder<'a, F> {
                 let index = self.octree.cells.len();
                 self.octree.cells.push([Cell::Invalid; 8]);
                 let mut hermite_child = [LeafHermiteData::default(); 8];
+                let curved_before = self.stats.curved_leaves;
                 for i in Corner::<3>::iter() {
                     let cell = cell.child(index, i);
                     if !self.recurse::<BUDGETED>(
@@ -736,10 +790,97 @@ impl<'a, F: Function + RenderHints> OctreeBuilder<'a, F> {
                 }
 
                 // Figure out whether the children can be collapsed
-                self.octree.check_done(cell, index, hermite_child, hermite)
+                if BUDGETED && self.stats.curved_leaves != curved_before {
+                    // The ordinary QEF collapse has no local-distance test.
+                    // Keep the verified curved descendants in this subtree.
+                    Cell::Branch { index }
+                } else {
+                    self.octree.check_done(cell, index, hermite_child, hermite)
+                }
             }
         };
         true
+    }
+
+    fn patch(&mut self, function: &F, cell: CellIndex<3>) -> Option<Patch> {
+        if self.plane.is_some_and(|test| test(function)) {
+            return Some(Patch::Plane);
+        }
+        let (tolerance, test) = self.surface?;
+        test(
+            &mut self.gradients,
+            function,
+            cell.bounds,
+            self.world_to_model,
+            self.vars,
+            tolerance,
+        )
+    }
+
+    fn check_patch(
+        &mut self,
+        patch: &Patch,
+        cell: CellIndex<3>,
+        leaf: Leaf<3>,
+        eval: &mut RenderHandle<F>,
+    ) -> bool {
+        let Patch::Sheet {
+            axis,
+            max_field_residual,
+        } = *patch
+        else {
+            return true;
+        };
+        // The entire end faces must bracket zero. Combined with the strict
+        // derivative sign, this gives one crossing on every axial line.
+        let mut limits = [false; 2];
+        for (side, sign) in limits.iter_mut().enumerate() {
+            let mut b = cell.bounds.bounds;
+            b[axis] = if side == 0 {
+                b[axis].lower()
+            } else {
+                b[axis].upper()
+            }
+            .into();
+            let Ok((i, _)) = self.eval_interval.eval_raw(
+                eval.i_tape(&mut self.tape_storage),
+                b[0],
+                b[1],
+                b[2],
+                self.world_to_model,
+                self.vars,
+            ) else {
+                return false;
+            };
+            if i.lower() > 0.0 {
+                *sign = true;
+            } else if i.upper() >= 0.0 || i.has_nan() {
+                return false;
+            }
+        }
+        if limits[0] == limits[1] {
+            return false;
+        }
+        // Four primal edge crossings and the dual vertex of this candidate.
+        let verts = &self.octree.verts[leaf.index..];
+        if verts.len() != 5 {
+            return false;
+        }
+        let xs: [f32; 5] = std::array::from_fn(|i| verts[i].pos.x);
+        let ys: [f32; 5] = std::array::from_fn(|i| verts[i].pos.y);
+        let zs: [f32; 5] = std::array::from_fn(|i| verts[i].pos.z);
+        self.eval_float_slice
+            .eval_raw(
+                eval.f_tape(&mut self.tape_storage),
+                &xs,
+                &ys,
+                &zs,
+                self.world_to_model,
+                ShapeBulkEval::<F::FloatSliceEval>::var_value(self.vars),
+            )
+            .is_ok_and(|values| {
+                values.iter().all(|v| v.abs() <= max_field_residual)
+            })
     }
 
     /// Evaluates the given leaf
@@ -1298,6 +1439,50 @@ mod test {
         .sqrt();
 
         b - radius * (1.0 - a / length)
+    }
+
+    #[test]
+    fn curved_sphere_sheets_preserve_topology_and_field_scaling() {
+        let center = nalgebra::Vector3::new(0.023, -0.012, 0.039);
+        let radius = 0.41;
+        let field = sphere(center.into(), radius);
+        let settings = Settings {
+            depth: 7,
+            threads: None,
+            ..Default::default()
+        };
+        let mut first = None;
+        for scale in [1.0f32, 8.0] {
+            let shape = tree_to_shape(field.clone() * scale);
+            let (tree, stats) = Octree::build_with_surface_error(
+                &shape, &settings, 500_000, 0.006,
+            )
+            .unwrap();
+            assert!(stats.curved_leaves > 0);
+            let mesh = tree.walk_dual();
+            let mut edges = BTreeMap::new();
+            for f in &mesh.triangles {
+                let [a, b, c] = [f.x, f.y, f.z].map(|i| mesh.vertices[i]);
+                for point in [a, (a + b + c) / 3.0] {
+                    assert!(((point - center).norm() - radius).abs() <= 0.006);
+                }
+                for (i, j) in [(f.x, f.y), (f.y, f.z), (f.z, f.x)] {
+                    *edges.entry((i.min(j), i.max(j))).or_insert(0) += 1;
+                }
+            }
+            assert!(edges.values().all(|n| *n == 2));
+            assert_eq!(
+                mesh.vertices.len() + mesh.triangles.len(),
+                edges.len() + 2
+            );
+            if let Some((cells, leaves)) = first {
+                assert_eq!(
+                    (stats.visited, stats.curved_leaves),
+                    (cells, leaves)
+                );
+            }
+            first = Some((stats.visited, stats.curved_leaves));
+        }
     }
 
     #[test]
