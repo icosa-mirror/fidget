@@ -47,6 +47,8 @@ pub struct BuildStats {
     pub planar_leaves: u32,
     /// Curved sheets accepted above the finest depth.
     pub curved_leaves: u32,
+    /// Parent merges that passed a surface check over curved descendants.
+    pub curved_merges: u32,
 }
 
 /// A build stopped before it had a complete tree.
@@ -460,13 +462,17 @@ impl Octree {
         // single-threaded evaluation, it's only during merging octrees from
         // multiple threads that we'd have cells midway through the array.
         if !matches!(out, Cell::Branch { .. }) {
-            if index == self.cells.len() - 1 {
-                self.cells.resize(index, [Cell::Invalid; 8]);
-            } else {
-                self.cells[index] = [Cell::Invalid; 8];
-            }
+            self.release_children(index);
         }
         out
+    }
+
+    fn release_children(&mut self, index: usize) {
+        if index == self.cells.len() - 1 {
+            self.cells.pop();
+        } else {
+            self.cells[index] = [Cell::Invalid; 8];
+        }
     }
 
     /// Try to collapse the given cell
@@ -740,14 +746,18 @@ impl<'a, F: Function + RenderHints> OctreeBuilder<'a, F> {
             // Bound the scale difference to preserve the accuracy of the
             // leaf's quantized edge intersections. Only a single in-cell
             // vertex may meet finer neighbors in the dual traversal.
-            if BUDGETED
+            let patch = if BUDGETED
                 && cell.depth >= 2
                 && cell.depth < usize::from(self.max_depth)
                 && cell.depth + 4 >= usize::from(self.max_depth)
                 && i.lower().is_finite()
                 && i.upper().is_finite()
-                && let Some(patch) = self.patch(sub_tape.function(), cell)
             {
+                self.patch(sub_tape.function(), cell)
+            } else {
+                None
+            };
+            if let Some(patch) = &patch {
                 let start = self.octree.verts.len();
                 let mut candidate = LeafHermiteData::default();
                 if let Cell::Leaf(leaf) =
@@ -755,7 +765,7 @@ impl<'a, F: Function + RenderHints> OctreeBuilder<'a, F> {
                     // These six masks are the two end faces of each axis.
                     && matches!(leaf.mask.index(), 0x0f | 0xf0 | 0x33 | 0xcc | 0x55 | 0xaa)
                     && cell.bounds.contains(self.octree.verts[leaf.index])
-                    && self.check_patch(&patch, cell, leaf, sub_tape)
+                    && self.check_patch(patch, cell, leaf, sub_tape)
                 {
                     self.octree[cell] = Cell::Leaf(leaf);
                     *hermite = candidate;
@@ -791,15 +801,58 @@ impl<'a, F: Function + RenderHints> OctreeBuilder<'a, F> {
 
                 // Figure out whether the children can be collapsed
                 if BUDGETED && self.stats.curved_leaves != curved_before {
-                    // The ordinary QEF collapse has no local-distance test.
-                    // Keep the verified curved descendants in this subtree.
-                    Cell::Branch { index }
+                    self.merge_curved_children(
+                        sub_tape,
+                        cell,
+                        index,
+                        hermite_child,
+                        hermite,
+                        patch,
+                    )
                 } else {
                     self.octree.check_done(cell, index, hermite_child, hermite)
                 }
             }
         };
         true
+    }
+
+    fn merge_curved_children(
+        &mut self,
+        eval: &mut RenderHandle<F>,
+        cell: CellIndex<3>,
+        index: usize,
+        children: [LeafHermiteData; 8],
+        hermite: &mut LeafHermiteData,
+        patch: Option<Patch>,
+    ) -> Cell<3> {
+        let branch = Cell::Branch { index };
+        let Some(Patch::Sheet {
+            axis,
+            max_field_residual,
+        }) = patch
+        else {
+            return branch;
+        };
+        // Reuse the topology, relative QEF error and vertex bounds checks.
+        // The children establish connectivity even for a side-exiting sheet.
+        let Some(leaf) =
+            self.octree.try_collapse(cell, index, children, hermite)
+        else {
+            return branch;
+        };
+        if !self.check_sheet_vertices(
+            eval,
+            leaf,
+            max_field_residual,
+            Some((cell, axis)),
+        ) {
+            self.octree.verts.truncate(leaf.index);
+            return branch;
+        }
+        self.stats.curved_merges += 1;
+        self.octree.release_children(index);
+        Cell::Leaf(leaf)
     }
 
     fn patch(&mut self, function: &F, cell: CellIndex<3>) -> Option<Patch> {
@@ -861,25 +914,67 @@ impl<'a, F: Function + RenderHints> OctreeBuilder<'a, F> {
         if limits[0] == limits[1] {
             return false;
         }
-        // Four primal edge crossings and the dual vertex of this candidate.
+        self.check_sheet_vertices(eval, leaf, max_field_residual, None)
+    }
+
+    fn check_sheet_vertices(
+        &mut self,
+        eval: &mut RenderHandle<F>,
+        leaf: Leaf<3>,
+        max_field_residual: f32,
+        bracket: Option<(CellIndex<3>, usize)>,
+    ) -> bool {
+        // One newly appended dual vertex, up to 12 edge crossings and two
+        // optional samples to bracket the merged vertex's closest axial root.
         let verts = &self.octree.verts[leaf.index..];
-        if verts.len() != 5 {
-            return false;
+        let mut coords = [[0.0; 15]; 3];
+        let n = verts.len();
+        for (axis, values) in coords.iter_mut().enumerate() {
+            for (slot, v) in values.iter_mut().zip(verts) {
+                *slot = v.pos[axis];
+            }
         }
-        let xs: [f32; 5] = std::array::from_fn(|i| verts[i].pos.x);
-        let ys: [f32; 5] = std::array::from_fn(|i| verts[i].pos.y);
-        let zs: [f32; 5] = std::array::from_fn(|i| verts[i].pos.z);
+        let count = if let Some((cell, axis)) = bracket {
+            // The full end faces need not straddle zero after subdivision.
+            // Check for a crossing inside the parent and within one quarter
+            // of the shape-local tolerance along the certified monotone axis.
+            let (tolerance, _) = self.surface.unwrap();
+            let scale =
+                self.world_to_model.map_or(1.0, |m| m[(axis, axis)].abs());
+            if scale == 0.0 {
+                return false;
+            }
+            let step = (tolerance * 0.25) / scale;
+            for values in &mut coords {
+                values[n] = values[0];
+                values[n + 1] = values[0];
+            }
+            let bounds = cell.bounds.bounds[axis];
+            let v = &mut coords[axis];
+            v[n] = (v[0] - step).max(bounds.lower());
+            v[n + 1] = (v[0] + step).min(bounds.upper());
+            n + 2
+        } else {
+            n
+        };
         self.eval_float_slice
             .eval_raw(
                 eval.f_tape(&mut self.tape_storage),
-                &xs,
-                &ys,
-                &zs,
+                &coords[0][..count],
+                &coords[1][..count],
+                &coords[2][..count],
                 self.world_to_model,
                 ShapeBulkEval::<F::FloatSliceEval>::var_value(self.vars),
             )
             .is_ok_and(|values| {
-                values.iter().all(|v| v.abs() <= max_field_residual)
+                values[..n].iter().all(|v| v.abs() <= max_field_residual)
+                    && match &values[n..] {
+                        [] => true,
+                        [a, b] => {
+                            (*a <= 0.0 && *b >= 0.0) || (*b <= 0.0 && *a >= 0.0)
+                        }
+                        _ => unreachable!(),
+                    }
             })
     }
 
@@ -1447,7 +1542,7 @@ mod test {
         let radius = 0.41;
         let field = sphere(center.into(), radius);
         let settings = Settings {
-            depth: 7,
+            depth: 8,
             threads: None,
             ..Default::default()
         };
@@ -1459,6 +1554,7 @@ mod test {
             )
             .unwrap();
             assert!(stats.curved_leaves > 0);
+            assert!(stats.curved_merges > 0);
             let mesh = tree.walk_dual();
             let mut edges = BTreeMap::new();
             for f in &mesh.triangles {
@@ -1475,13 +1571,12 @@ mod test {
                 mesh.vertices.len() + mesh.triangles.len(),
                 edges.len() + 2
             );
-            if let Some((cells, leaves)) = first {
-                assert_eq!(
-                    (stats.visited, stats.curved_leaves),
-                    (cells, leaves)
-                );
+            let counts =
+                (stats.visited, stats.curved_leaves, stats.curved_merges);
+            if let Some(expected) = first {
+                assert_eq!(counts, expected);
             }
-            first = Some((stats.visited, stats.curved_leaves));
+            first = Some(counts);
         }
     }
 

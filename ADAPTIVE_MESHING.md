@@ -21,6 +21,14 @@ sampler bounds variation in the two transverse slopes over the cell, then checks
 the field residual at the dual vertex and the four edge intersections. Early
 acceptance is limited to four levels above the finest depth. Unrecognized
 operations, singularities and ambiguous topology continue to use subdivision.
+After subdivision, the sampler can also simplify a sheet that crosses a side
+face. The eight children must pass the manifold topology checks. The parent
+must pass the same slope-variation bound, and its fitted vertex and retained
+edge crossings must pass the field-residual check. Two probes along the
+monotone axis must bracket a zero within one quarter of Surface Error of the
+fitted vertex, inside the parent cell. A parent containing a curved acceptance
+can only merge through these checks. The benchmark counts successful merges
+separately from cells accepted before subdivision.
 These checks apply locally. They do not bound the total surface error at
 finest-depth leaves or at transitions. Parallel adaptive building remains open.
 

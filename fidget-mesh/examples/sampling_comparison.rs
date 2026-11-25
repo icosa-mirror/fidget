@@ -241,7 +241,7 @@ fn main() {
     let (shape, values) = fixture();
     let shape = shape.bind(&values).unwrap();
     println!(
-        "depth,phase,mode,visited,planar_leaves,curved_leaves,triangles,median_ms,peak_rust_heap_bytes,max_field_residual,max_probe_distance,max_ray_shift_from_reference,rays_with_different_crossing_count,reference_depth"
+        "depth,phase,mode,visited,planar_leaves,curved_leaves,triangles,median_ms,peak_rust_heap_bytes,max_field_residual,max_probe_distance,max_ray_shift_from_reference,rays_with_different_crossing_count,reference_depth,curved_merges"
     );
     for depth in depths {
         for phase in [0.0, 0.37, 0.81] {
@@ -317,13 +317,14 @@ fn main() {
                         }
                         let name = names[mode];
                         println!(
-                            "{depth},{phase:.2},{name},{},{},{},{},{:.2},{peak},{residual:.6},{distance:.6},{ray_shift:.6},{crossing_count_changes},{}",
+                            "{depth},{phase:.2},{name},{},{},{},{},{:.2},{peak},{residual:.6},{distance:.6},{ray_shift:.6},{crossing_count_changes},{},{}",
                             stats.visited,
                             stats.planar_leaves,
                             stats.curved_leaves,
                             mesh.triangles.len(),
                             times[mode][2],
-                            fine.depth
+                            fine.depth,
+                            stats.curved_merges
                         );
                     }
                 }
