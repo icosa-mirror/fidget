@@ -11,17 +11,40 @@ The longest bounds axis determines the depth needed for that spacing. High-detai
 spacing-based and adaptive builds have a configurable cell budget. An interrupted
 request preserves the last completed mesh in the stream.
 
-The first adaptive policy, **Adaptive Planes**, uses the VM's regionally simplified
-expression. It accepts a cell early when a unary affine chain, optionally folded
-once by absolute value, has opposite signs on the two end faces of its varying axis. It uses
-axis-aligned sampling bounds and limits early acceptance to four levels above the
-finest depth. Curved regions continue to the selected depth. Rust fixtures check
-a drilled block at three grid offsets, disconnected spheres, and a thin bridge.
-The Unity Editor integration check exercises a drilled block with surface normals,
-depth 11, and recovery after budget exhaustion.
+**Adaptive Planes** detects single-axis crossings in the regionally simplified VM
+expression. A derivative interval can establish monotonicity on rounded-box faces
+whose tape still contains squares, a square root and constant branches.
 
-General curved-patch acceptance using a local surface-error tolerance and a
-parallel adaptive builder remain open.
+A positive **Surface Error** also considers curved sheets. A candidate needs a
+strictly monotone axis and opposite signs over its two entire end faces. The
+sampler bounds variation in the two transverse slopes over the cell, then checks
+the field residual at the dual vertex and the four edge intersections. Early
+acceptance is limited to four levels above the finest depth. Unrecognized
+operations, singularities and ambiguous topology continue to use subdivision.
+These checks apply locally. They do not bound the total surface error at
+finest-depth leaves or at transitions. Parallel adaptive building remains open.
+
+### Rounded-block comparison
+
+Run `cargo run --release -p fidget-mesh --example sampling_comparison` from the
+workspace root. The benchmark builds the same bridged pair of rounded blocks
+and cylindrical through-hole as the Unity scene. It sweeps three grid offsets,
+checks closed edges and connectivity, samples the analytic field and reference
+surface, and compares 28 axial rays with a depth-9 mesh at the same offset.
+It reports median build-plus-traversal time over five measured runs and the
+peak additional live Rust heap for that operation. Unity normals, mesh uploads
+and process RSS are outside this measurement.
+
+On the Windows host at depth 8 and zero grid offset, the fixed build visited
+160,649 cells and peaked at 13,664,256 bytes. Planar sampling visited 84,297
+cells and peaked at 7,323,648 bytes. A curved tolerance of 0.008 visited 73,609
+cells, accepted 1,336 curved cells, and peaked at 6,316,032 bytes. At 0.002
+the curved test accepted zero curved cells at this offset.
+
+At depth 8 all modes matched the depth-9 crossing counts at all three offsets.
+Some depth-6 and depth-7 runs differed from the reference even with fixed
+sampling. The CSV keeps these crossing-count differences separate from the
+maximum distance between corresponding ray hit sets.
 
 ## Fixed-depth behavior
 

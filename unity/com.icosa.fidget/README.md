@@ -66,7 +66,7 @@ larger than requested. Read `Stream.AppliedCellSpacing` and `Stream.AppliedDepth
 after a successful update.
 
 `CellBudget` limits visited octree cells per request. A value of zero uses
-one million cells for depths above 8, spacing-based requests, or adaptive planes. Existing
+one million cells for depths above 8, spacing-based requests, or either adaptive mode. Existing
 explicit depths through 8 run without a budget by default. If a request
 exhausts its budget, the previous complete mesh stays visible.
 `TryApply()` returns false, `IsPending` becomes false, and
@@ -74,12 +74,23 @@ exhausts its budget, the previous complete mesh stays visible.
 budget or select coarser sampling to retry. The budget counts cells, so time
 and memory also depend on the expression and the surface inside the bounds.
 
-Enable **Adaptive Planes** to finish eligible flat patches early. The VM must
-reduce the field within the cell to a single axis with simple constant
-arithmetic, optionally including one absolute value. For example, a block cut
-by a cylindrical bore can spend fewer samples on its faces while retaining
-the requested sampling depth at the rim. More complex expressions, including
-many parameterized or rotated planes, fall back to ordinary sampling.
+Enable **Adaptive Planes** to finish eligible flat patches early. It recognizes
+single-axis crossings, including flat regions of a rounded box. Unsupported
+expressions continue to the requested depth.
+
+**Surface Error** is an experimental, shape-local tolerance for accepting gently
+curved patches early. A positive value enables both flat and curved candidates.
+Zero uses the existing sampling settings. **Feature Spacing** still sets the
+finest search resolution. A surface missed at that resolution cannot be
+recovered by lowering Surface Error. The tolerance applies to early patches, and
+the whole mesh can have greater error at the finest cells and their transitions.
+
+Open `Scenes/Sampling/RoundedBlockComparison` in the examples and enter Play.
+Try Feature Spacing 0.008 and Surface Error 0.008, then compare with Surface
+Error zero. The left model samples at fixed depth. The right uses adaptive
+sampling. Both receive the same bore diameter, bridge thickness and grid offset.
+`MeshStream.LastCurvedLeaves` counts accepted curved cells, and
+`LastWorkerMilliseconds` includes native sampling, normals and buffer writes.
 
 New components default to updating when property values change. Enable `Continuous`
 to generate every available frame. Updates happen in `LateUpdate`; values are
@@ -249,7 +260,7 @@ Conventions and differences from the Rust structs:
   field values across cell boundaries to avoid discontinuities and use explicit
   meshing bounds to select a finite region.
 
-The current package requires **ABI 8** native libraries. Rebuild/package matching native
+The current package requires **ABI 9** native libraries. Rebuild/package matching native
 libraries before using updated C# sources with an older published package.
 The **Shape Library** sample scene uses four small `FidgetMesh<T>` components to show
 extrusion, blending, lofting, revolution,
