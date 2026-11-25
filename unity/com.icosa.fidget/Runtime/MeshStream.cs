@@ -16,6 +16,7 @@ namespace Icosa.Fidget
         private struct Result
         {
             public int Status;
+            public long WorkerTicks;
             public Native.SamplingStats Work;
             public Native.Counts Counts;
             public Native.Bounds Bounds;
@@ -34,6 +35,7 @@ namespace Icosa.Fidget
 
             public void Execute()
             {
+                long start = System.Diagnostics.Stopwatch.GetTimestamp();
                 var result = new Result { Status = -1 };
                 var handle = IntPtr.Zero;
                 try
@@ -88,6 +90,7 @@ namespace Icosa.Fidget
                 finally
                 {
                     Native.fidget_mesh_free(handle);
+                    result.WorkerTicks = System.Diagnostics.Stopwatch.GetTimestamp() - start;
                     Results[0] = result;
                 }
             }
@@ -110,6 +113,8 @@ namespace Icosa.Fidget
         public int TriangleCount { get; private set; }
         public bool CellBudgetExceeded { get; private set; }
         public uint LastVisitedCells { get; private set; }
+        /// <summary>Time spent inside the completed worker job, including normals and buffer writes.</summary>
+        public double LastWorkerMilliseconds { get; private set; }
         public int AppliedDepth { get; private set; }
         public float AppliedCellSpacing => AppliedDepth == 0 ? 0 : Settings.LongestCellEdge(AppliedDepth);
         private int _pendingDepth;
@@ -193,6 +198,7 @@ namespace Icosa.Fidget
             _pending = false;
             var result = _results[0];
             LastVisitedCells = result.Work.Visited;
+            LastWorkerMilliseconds = result.WorkerTicks * (1000.0 / System.Diagnostics.Stopwatch.Frequency);
             CellBudgetExceeded = result.Status == Native.CellBudgetExceeded;
             if (result.Status != 0)
             {

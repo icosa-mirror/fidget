@@ -54,6 +54,22 @@ namespace FidgetExamples
 
         private Vector4 Controls => new Vector4(FeatureSpacing, BoreDiameter, BridgeThickness, GridPhase);
 
+        private void OnGUI()
+        {
+            GUILayout.BeginArea(new Rect(12, 8, 230, 205), GUI.skin.box);
+            FeatureSpacing = Slider("Feature spacing", FeatureSpacing, 0.008f, 0.04f);
+            BoreDiameter = Slider("Bore diameter", BoreDiameter, 0.055f, 0.22f);
+            BridgeThickness = Slider("Bridge thickness", BridgeThickness, 0.045f, 0.18f);
+            GridPhase = Slider("Grid phase", GridPhase, 0, 1);
+            GUILayout.EndArea();
+        }
+
+        private static float Slider(string label, float value, float min, float max)
+        {
+            GUILayout.Label($"{label}  {value:F3}");
+            return GUILayout.HorizontalSlider(value, min, max);
+        }
+
         private IEnumerator Compare()
         {
             while (true)
@@ -67,7 +83,6 @@ namespace FidgetExamples
                     var readout = adaptive ? AdaptiveReadout : FixedReadout;
                     string label = adaptive ? "Adaptive planes" : "Fixed depth";
                     _active = new MeshStream(_shape, SamplingSettings(controls.x, controls.w, adaptive));
-                    double start = Time.realtimeSinceStartupAsDouble;
                     _active.TrySchedule(_values);
                     while (_active.IsPending && !_active.TryApply()) yield return null;
                     if (_active.CellBudgetExceeded)
@@ -77,12 +92,14 @@ namespace FidgetExamples
                     }
                     else
                     {
-                        double elapsed = (Time.realtimeSinceStartupAsDouble - start) * 1000;
                         var filter = adaptive ? AdaptiveMesh : FixedMesh;
                         filter.sharedMesh = _active.Mesh;
                         if (adaptive) { _adaptive?.Dispose(); _adaptive = _active; }
                         else { _fixed?.Dispose(); _fixed = _active; }
-                        readout.text = $"{label} · depth {_active.AppliedDepth}\n{_active.LastVisitedCells:N0} cells · {_active.TriangleCount:N0} triangles\n{elapsed:F0} ms to display";
+                        readout.text = $"{label} · depth {_active.AppliedDepth}\n{_active.LastVisitedCells:N0} cells · {_active.TriangleCount:N0} triangles";
+#if FIDGET_WORKER_TIMING
+                        readout.text += $"\n{_active.LastWorkerMilliseconds:F1} ms worker time";
+#endif
                     }
                     _active = null;
                 }

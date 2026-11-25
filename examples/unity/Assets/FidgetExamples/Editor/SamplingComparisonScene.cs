@@ -38,6 +38,8 @@ namespace FidgetExamples.Editor
                     go.GetComponent<MeshRenderer>().sharedMaterial = material;
                     var text = new GameObject(title + " readout").AddComponent<TextMesh>();
                     text.transform.SetParent(control.transform, false);
+                    text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+                    text.GetComponent<MeshRenderer>().sharedMaterial = text.font.material;
                     text.transform.position = go.transform.position + new Vector3(0, -1.05f, 0);
                     text.anchor = TextAnchor.MiddleCenter;
                     text.alignment = TextAlignment.Center;
