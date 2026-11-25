@@ -228,9 +228,101 @@ fn ray_crossings(mesh: &Mesh) -> Vec<Vec<f64>> {
         .collect()
 }
 
+fn fixture_settings(depth: u8, phase: f32) -> Settings<'static> {
+    let edge = 2.0 / (1 << depth) as f32;
+    let mut cfg = Settings {
+        depth,
+        threads: None,
+        ..Default::default()
+    };
+    for (axis, scale) in [1.0, 0.5, 0.25].into_iter().enumerate() {
+        cfg.world_to_model[(axis, 3)] = edge * phase * scale;
+    }
+    cfg
+}
+
+fn compare_crossings(
+    hits: &[Vec<f64>],
+    reference: &[Vec<f64>],
+) -> (f64, usize) {
+    let mut ray_shift = 0.0f64;
+    let mut crossing_count_changes = 0;
+    for (hits, expected) in hits.iter().zip(reference) {
+        if hits.len() != expected.len() {
+            crossing_count_changes += 1;
+        }
+        for (from, to) in [(hits, expected), (expected, hits)] {
+            for a in from {
+                let nearest = to
+                    .iter()
+                    .map(|b| (a - b).abs())
+                    .fold(f64::INFINITY, f64::min);
+                ray_shift = ray_shift.max(nearest);
+            }
+        }
+    }
+    (ray_shift, crossing_count_changes)
+}
+
+fn check_depth_11() {
+    const SURFACE_ERROR: f32 = 0.008;
+    let (shape, values) = fixture();
+    let shape = shape.bind(&values).unwrap();
+    println!(
+        "phase,mode,visited,triangles,max_field_residual,max_probe_distance,max_ray_shift_from_fixed11,rays_with_different_crossing_count"
+    );
+    for phase in [0.0, 0.37, 0.81] {
+        let cfg = fixture_settings(11, phase);
+        let mut reference = Vec::new();
+        for name in ["fixed", "curved"] {
+            let (tree, stats) = if name == "fixed" {
+                Octree::build_with_budget(&shape, &cfg, 15_000_000)
+            } else {
+                Octree::build_with_surface_error(
+                    &shape,
+                    &cfg,
+                    2_000_000,
+                    SURFACE_ERROR,
+                )
+            }
+            .unwrap();
+            let mesh = tree.walk_dual();
+            drop(tree);
+            let (residual, distance) = check(&mesh);
+            let hits = ray_crossings(&mesh);
+            let (shift, different) = if name == "fixed" {
+                reference = hits;
+                (0.0, 0)
+            } else {
+                let (shift, different) = compare_crossings(&hits, &reference);
+                assert_eq!(
+                    different, 0,
+                    "ray crossing count changed at offset {phase}"
+                );
+                assert!(
+                    shift <= f64::from(SURFACE_ERROR)
+                        && distance <= SURFACE_ERROR
+                        && residual <= SURFACE_ERROR,
+                    "sampled error at offset {phase}: residual {residual}, distance {distance}, ray shift {shift}"
+                );
+                (shift, different)
+            };
+            println!(
+                "{phase:.2},{name},{},{},{residual:.6},{distance:.6},{shift:.6},{different}",
+                stats.visited,
+                mesh.triangles.len()
+            );
+        }
+    }
+}
+
 fn main() {
+    let args: Vec<_> = std::env::args().skip(1).collect();
+    if args == ["--check-depth11"] {
+        return check_depth_11();
+    }
     let mut depths = Vec::new();
-    for arg in std::env::args().skip(1) {
+    for arg in args {
         let depth = arg.parse::<u8>().expect("expected a depth from 6 to 9");
         assert!((6..=9).contains(&depth), "expected a depth from 6 to 9");
         depths.push(depth);
@@ -245,15 +337,7 @@ fn main() {
     );
     for depth in depths {
         for phase in [0.0, 0.37, 0.81] {
-            let edge = 2.0 / (1 << depth) as f32;
-            let mut cfg = Settings {
-                depth,
-                threads: None,
-                ..Default::default()
-            };
-            for (axis, scale) in [1.0, 0.5, 0.25].into_iter().enumerate() {
-                cfg.world_to_model[(axis, 3)] = edge * phase * scale;
-            }
+            let cfg = fixture_settings(depth, phase);
             let fine = Settings {
                 depth: (depth + 1).max(9),
                 threads: None,
@@ -295,26 +379,11 @@ fn main() {
                     if run == 6 {
                         times[mode].sort_by(f64::total_cmp);
                         let (residual, distance) = check(&mesh);
-                        let mut ray_shift = 0.0f64;
-                        let mut crossing_count_changes = 0;
-                        for (hits, expected) in
-                            ray_crossings(&mesh).iter().zip(&reference)
-                        {
-                            if hits.len() != expected.len() {
-                                crossing_count_changes += 1;
-                            }
-                            for (from, to) in
-                                [(hits, expected), (expected, hits)]
-                            {
-                                for a in from {
-                                    let nearest = to
-                                        .iter()
-                                        .map(|b| (a - b).abs())
-                                        .fold(f64::INFINITY, f64::min);
-                                    ray_shift = ray_shift.max(nearest);
-                                }
-                            }
-                        }
+                        let (ray_shift, crossing_count_changes) =
+                            compare_crossings(
+                                &ray_crossings(&mesh),
+                                &reference,
+                            );
                         let name = names[mode];
                         println!(
                             "{depth},{phase:.2},{name},{},{},{},{},{:.2},{peak},{residual:.6},{distance:.6},{ray_shift:.6},{crossing_count_changes},{},{}",

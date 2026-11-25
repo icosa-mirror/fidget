@@ -57,6 +57,22 @@ Some depth-6 and depth-7 runs differed from the reference even with fixed
 sampling. The CSV keeps these crossing-count differences separate from the
 maximum distance between corresponding ray hit sets.
 
+At depth 9 and Surface Error 0.008, checking parent merges reduced triangle
+counts from 77,712 to 74,152 at zero offset, from 76,946 to 70,502 at offset
+0.37, and from 75,452 to 66,876 at offset 0.81. The visited-cell counts stayed
+the same. All 28 ray counts matched the fixed depth-10 reference in each run.
+The measured maximum field residuals, reverse surface distances and ray shifts
+also matched the pre-merge results to the six decimal places reported.
+
+Run `cargo run --release -p fidget-mesh --example sampling_comparison -- --check-depth11`
+for a geometry comparison at the highest supported depth. It builds each mesh
+once per offset with a 15-million-cell allowance for the fixed reference and
+the scene's two-million-cell allowance for curved sampling. At zero offset the
+curved build used 1,840,553 cells and produced 208,764 triangles, down from
+395,712 before parent merges. All three curved meshes passed the connectivity,
+closed-edge and through-hole checks. All ray crossing counts matched the fixed
+reference, with a largest measured ray shift of 0.000618 shape-local units.
+
 ## Fixed-depth behavior
 
 Fidget already produces an adaptive output octree. In [octree.rs](fidget-mesh/src/octree.rs), the builder evaluates the field over each cell using interval arithmetic. A strictly positive or negative interval settles that cell immediately. For intervals that include zero, the recursive path descends to the requested depth before evaluating the leaf. The leaf uses corner signs to select edge crossings. A small enclosed surface can therefore disappear when every corner has the same sign. The existing depth-zero sphere test illustrates this case.
