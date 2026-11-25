@@ -40,7 +40,7 @@ pub struct FidgetBounds {
 /// Version of the C ABI defined by `include/fidget_native.h`.
 #[unsafe(no_mangle)]
 pub extern "C" fn fidget_native_abi_version() -> u32 {
-    8
+    9
 }
 
 /// Meshes a sphere at the origin inside the fixed [-1, 1]^3 domain.

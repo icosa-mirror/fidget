@@ -11,6 +11,9 @@ namespace FidgetExamples
         [Range(0.045f, 0.18f)] public float BridgeThickness = 0.085f;
         [Tooltip("Shift the sampling bounds by a fraction of a finest cell on each axis.")]
         [Range(0, 1)] public float GridPhase;
+#if FIDGET_CURVED_SAMPLING
+        [Range(0f, 0.012f)] public float SurfaceError;
+#endif
         public MeshFilter FixedMesh, AdaptiveMesh;
         public TextMesh FixedReadout, AdaptiveReadout;
 
@@ -56,11 +59,14 @@ namespace FidgetExamples
 
         private void OnGUI()
         {
-            GUILayout.BeginArea(new Rect(12, 8, 230, 205), GUI.skin.box);
+            GUILayout.BeginArea(new Rect(12, 8, 230, 240), GUI.skin.box);
             FeatureSpacing = Slider("Feature spacing", FeatureSpacing, 0.008f, 0.04f);
             BoreDiameter = Slider("Bore diameter", BoreDiameter, 0.055f, 0.22f);
             BridgeThickness = Slider("Bridge thickness", BridgeThickness, 0.045f, 0.18f);
             GridPhase = Slider("Grid phase", GridPhase, 0, 1);
+#if FIDGET_CURVED_SAMPLING
+            SurfaceError = Slider("Surface error", SurfaceError, 0, 0.012f);
+#endif
             GUILayout.EndArea();
         }
 
@@ -75,6 +81,9 @@ namespace FidgetExamples
             while (true)
             {
                 var controls = Controls;
+#if FIDGET_CURVED_SAMPLING
+                float requestedError = SurfaceError;
+#endif
                 _values.Set("boreDiameter", controls.y);
                 _values.Set("bridgeThickness", controls.z);
                 for (int i = 0; i < 2; ++i)
@@ -82,7 +91,15 @@ namespace FidgetExamples
                     bool adaptive = i == 1;
                     var readout = adaptive ? AdaptiveReadout : FixedReadout;
                     string label = adaptive ? "Adaptive planes" : "Fixed depth";
-                    _active = new MeshStream(_shape, SamplingSettings(controls.x, controls.w, adaptive));
+                    var settings = SamplingSettings(controls.x, controls.w, adaptive);
+#if FIDGET_CURVED_SAMPLING
+                    if (adaptive && requestedError > 0f)
+                    {
+                        settings.SurfaceError = requestedError;
+                        label = "Adaptive curves";
+                    }
+#endif
+                    _active = new MeshStream(_shape, settings);
                     _active.TrySchedule(_values);
                     while (_active.IsPending && !_active.TryApply()) yield return null;
                     if (_active.CellBudgetExceeded)
@@ -100,10 +117,19 @@ namespace FidgetExamples
 #if FIDGET_WORKER_TIMING
                         readout.text += $"\n{_active.LastWorkerMilliseconds:F1} ms worker time";
 #endif
+#if FIDGET_CURVED_SAMPLING
+                        if (settings.SurfaceError > 0) readout.text += $"\n{_active.LastCurvedLeaves:N0} curved cells";
+#endif
                     }
                     _active = null;
                 }
-                while (Controls.Equals(controls)) yield return null;
+                while (Controls.Equals(controls))
+                {
+#if FIDGET_CURVED_SAMPLING
+                    if (SurfaceError != requestedError) break;
+#endif
+                    yield return null;
+                }
             }
         }
 

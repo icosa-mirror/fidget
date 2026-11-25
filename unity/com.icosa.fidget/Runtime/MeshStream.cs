@@ -41,8 +41,9 @@ namespace Icosa.Fidget
                 try
                 {
                     var bounds = new Native.Bounds { Min = Settings.Bounds.min, Max = Settings.Bounds.max };
-                    var sampling = new Native.Sampling { Depth = (uint)Settings.Depth, MaxCells = (uint)Settings.CellBudget, Planar = Settings.AdaptivePlanes ? 1u : 0u };
-                    result.Status = Native.fidget_mesher_sample(Mesher, Parameters.GetUnsafeReadOnlyPtr(),
+                    var sampling = new Native.Sampling { Depth = (uint)Settings.Depth, MaxCells = (uint)Settings.CellBudget,
+                        Planar = Settings.AdaptivePlanes ? 1u : 0u, SurfaceError = Settings.SurfaceError };
+                    result.Status = Native.fidget_mesher_sample_v2(Mesher, Parameters.GetUnsafeReadOnlyPtr(),
                         (uint)Parameters.Length, in bounds, sampling, out result.Work, out handle);
                     if (result.Status != 0) return;
                     if (Settings.Normals == MeshNormals.Surface)
@@ -113,6 +114,7 @@ namespace Icosa.Fidget
         public int TriangleCount { get; private set; }
         public bool CellBudgetExceeded { get; private set; }
         public uint LastVisitedCells { get; private set; }
+        public uint LastCurvedLeaves { get; private set; }
         /// <summary>Time spent inside the completed worker job, including normals and buffer writes.</summary>
         public double LastWorkerMilliseconds { get; private set; }
         public int AppliedDepth { get; private set; }
@@ -153,17 +155,15 @@ namespace Icosa.Fidget
 
         /// <summary>Overrides depth for this request without rebuilding the shape or replacing the Mesh.</summary>
         public bool TrySchedule(ParameterValues parameters, int depth)
-            => TrySchedule(parameters, depth, Settings.BudgetFor(depth), Settings.AdaptivePlanes, true);
+            => TrySchedule(parameters, depth, Settings, true);
 
-        internal bool TrySchedule(ParameterValues parameters, int depth, int cellBudget, bool adaptivePlanes, bool captureBindings)
+        internal bool TrySchedule(ParameterValues parameters, int depth, MeshSettings settings, bool captureBindings)
         {
             ThrowIfDisposed();
             if (_pending) return false;
             MeshSettings.ValidateDepth(depth);
-            var settings = Settings;
             settings.Depth = depth;
-            settings.CellBudget = cellBudget;
-            settings.AdaptivePlanes = adaptivePlanes;
+            settings.CellBudget = settings.BudgetFor(depth);
             if (parameters == null || parameters.Shape != _shape) throw new ArgumentException("Values must come from the stream's compiled shape.", nameof(parameters));
             if (captureBindings) parameters.CaptureBindings();
             // A dedicated snapshot prevents writes on the main thread from racing the worker.
@@ -198,6 +198,7 @@ namespace Icosa.Fidget
             _pending = false;
             var result = _results[0];
             LastVisitedCells = result.Work.Visited;
+            LastCurvedLeaves = result.Work.CurvedLeaves;
             LastWorkerMilliseconds = result.WorkerTicks * (1000.0 / System.Diagnostics.Stopwatch.Frequency);
             CellBudgetExceeded = result.Status == Native.CellBudgetExceeded;
             if (result.Status != 0)

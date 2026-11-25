@@ -74,9 +74,12 @@ namespace FidgetExamples.Editor
                 {
                     var values = shape.CreateParameters();
                     foreach (float phase in new[] { 0f, 0.37f, 0.81f })
-                    foreach (bool adaptive in new[] { false, true })
+                    foreach (var (adaptive, error) in Modes())
                     {
-                        var settings = SamplingComparison.SamplingSettings(controls.FeatureSpacing, phase, adaptive);
+                        var settings = SamplingComparison.SamplingSettings(error > 0 ? 0.008f : controls.FeatureSpacing, phase, adaptive);
+#if FIDGET_CURVED_SAMPLING
+                        settings.SurfaceError = error;
+#endif
                         using (var stream = new MeshStream(shape, settings))
                         {
                             values.Set("boreDiameter", controls.BoreDiameter);
@@ -89,11 +92,14 @@ namespace FidgetExamples.Editor
                                 Thread.Sleep(1);
                             }
                             var mesh = stream.Mesh;
+#if FIDGET_CURVED_SAMPLING
+                            if (error > 0 && stream.LastCurvedLeaves == 0) throw new InvalidDataException("No curved patch was accepted");
+#endif
                             if (mesh.normals.Length != mesh.vertexCount || !Covers(mesh, new Vector2(0.011f, 0.003f)) ||
                                 !Covers(mesh, new Vector2(-0.48f, controls.BoreDiameter * 0.65f)) ||
                                 Covers(mesh, new Vector2(-0.48f, 0.002f)))
                                 throw new InvalidDataException($"Bridge, bore or normals failed at grid phase {phase}, adaptive={adaptive}");
-                            Debug.Log($"[FidgetCoupon] phase={phase} adaptive={adaptive} visited={stream.LastVisitedCells} triangles={stream.TriangleCount}");
+                            Debug.Log($"[FidgetCoupon] phase={phase} adaptive={adaptive} error={error} visited={stream.LastVisitedCells} triangles={stream.TriangleCount}");
                         }
                     }
                 }
@@ -102,6 +108,15 @@ namespace FidgetExamples.Editor
             return "PASS rounded block comparison at three grid phases";
 #else
             throw new InvalidOperationException("Sampling comparison requires Fidget 0.8 or later.");
+#endif
+        }
+
+        private static (bool adaptive, float error)[] Modes()
+        {
+#if FIDGET_CURVED_SAMPLING
+            return new[] { (false, 0f), (true, 0f), (true, 0.008f) };
+#else
+            return new[] { (false, 0f), (true, 0f) };
 #endif
         }
 

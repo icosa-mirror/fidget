@@ -64,6 +64,15 @@ static int parameterized_shape(void) {
     CHECK(fidget_mesh_get_counts(fine, &fine_counts) == FIDGET_OK && fine_counts.index_count > 0);
     fidget_mesh_free(fine);
     FidgetSampling sampling = {11, 10000, 1};
+    FidgetSamplingV2 smooth = {{7, 300000, 0}, 0.012f};
+    FidgetSamplingReport report;
+    float sphere_radius = 0.7f;
+    CHECK(fidget_mesher_sample_v2(a, &sphere_radius, 1, &domain, smooth, &report, &fine) == FIDGET_OK);
+    CHECK(report.curved_leaves > 0 && report.work.visited <= smooth.sampling.max_cells);
+    fidget_mesh_free(fine);
+    smooth.surface_error = NAN;
+    CHECK(fidget_mesher_sample_v2(a, &sphere_radius, 1, &domain, smooth, &report, &invalid) == FIDGET_INVALID_ARGUMENT);
+    CHECK(invalid == NULL && report.work.visited == 0 && report.curved_leaves == 0);
     CHECK(fidget_mesher_sample(a, &tiny, 1, &domain, sampling, &work, &fine) == FIDGET_OK);
     CHECK(work.finest_leaves > 0 && work.visited <= sampling.max_cells);
     fidget_mesh_free(fine);
@@ -132,7 +141,7 @@ int main(void) {
     FidgetMesh *mesh = NULL;
     FidgetMeshCounts counts = {0};
     FidgetBounds bounds = {0};
-    CHECK(fidget_native_abi_version() == 8);
+    CHECK(fidget_native_abi_version() == 9);
     CHECK(fidget_mesh_sphere(0.6f, 4, NULL) == FIDGET_INVALID_ARGUMENT);
     CHECK(fidget_mesh_sphere(NAN, 4, &mesh) == FIDGET_INVALID_ARGUMENT);
     CHECK(mesh == NULL);

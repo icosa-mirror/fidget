@@ -74,7 +74,7 @@ typedef struct FidgetSamplingStats {
     uint32_t visited, interval_rejections, finest_leaves;
 } FidgetSamplingStats;
 
-/* Depth 1..11. A positive max_cells bounds interval evaluations. Zero uses
+/* Depth 1..11. A positive max_cells bounds visited octree cells. Zero uses
  * the legacy unmetered path and is accepted only at depths 1..8. Optional
  * stats are zero for unmetered builds. On budget exhaustion, out_mesh is
  * null, stats describe work done and the mesher is ready for another call. */
@@ -85,6 +85,15 @@ int32_t fidget_mesher_generate_with_budget(FidgetMesher *mesher, const float *va
 /* ABI v8. Set planar to 1 to sample eligible planar regions early, or
  * 0 for fixed depth. Adaptive sampling requires a positive cell budget. */
 typedef struct FidgetSampling { uint32_t depth, max_cells, planar; } FidgetSampling;
+/* ABI v9. A positive finite surface_error enables planar and curved patches
+ * and requires max_cells > 0. Zero keeps the v8 sampling behavior. */
+typedef struct FidgetSamplingV2 { FidgetSampling sampling; float surface_error; } FidgetSamplingV2;
+typedef struct FidgetSamplingReport {
+    FidgetSamplingStats work;
+    uint32_t planar_leaves, curved_leaves;
+} FidgetSamplingReport;
+int32_t fidget_mesher_sample_v2(FidgetMesher *mesher, const float *values, uint32_t count,
+    const FidgetBounds *bounds, FidgetSamplingV2 options, FidgetSamplingReport *report, FidgetMesh **out_mesh);
 int32_t fidget_mesher_sample(FidgetMesher *mesher, const float *values, uint32_t count,
     const FidgetBounds *bounds, FidgetSampling sampling, FidgetSamplingStats *stats, FidgetMesh **out_mesh);
 

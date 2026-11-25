@@ -17,7 +17,7 @@ namespace Icosa.Fidget
         public void Rebuild()
         {
             if (!(this is T model)) throw new System.InvalidOperationException($"The type argument must match the component: {GetType().Name}.");
-            var settings = new MeshSettings(Bounds, Detail, Normals, FeatureSpacing, CellBudget, AdaptivePlanes);
+            var settings = new MeshSettings(Bounds, Detail, Normals, FeatureSpacing, CellBudget, AdaptivePlanes) { SurfaceError = this.SurfaceError };
             settings.Validate();
             var builder = new ShapeBuilder<T>();
             var shape = builder.Compile(Define(builder));
@@ -33,7 +33,7 @@ namespace Icosa.Fidget
             if (ReferenceEquals(source, this)) throw new System.ArgumentException("A component cannot share its own definition.", nameof(source));
             if (source._definition == null) source.Rebuild();
             var shape = source._definition.Retain();
-            try { Initialize(shape, (T)this, new MeshSettings(Bounds, Detail, Normals, FeatureSpacing, CellBudget, AdaptivePlanes)); }
+            try { Initialize(shape, (T)this, new MeshSettings(Bounds, Detail, Normals, FeatureSpacing, CellBudget, AdaptivePlanes) { SurfaceError = this.SurfaceError }); }
             catch { shape.Dispose(); throw; }
             _definition = shape;
         }
@@ -53,6 +53,7 @@ namespace Icosa.Fidget
                 instance.FeatureSpacing = FeatureSpacing;
                 instance.CellBudget = CellBudget;
                 instance.AdaptivePlanes = AdaptivePlanes;
+                instance.SurfaceError = SurfaceError;
                 instance.Normals = Normals;
                 instance.Continuous = Continuous;
                 instance.ShareDefinition((T)this);

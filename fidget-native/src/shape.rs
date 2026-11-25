@@ -61,6 +61,29 @@ impl From<BuildStats> for FidgetSamplingStats {
     }
 }
 
+#[repr(C)]
+pub struct FidgetSamplingV2 {
+    sampling: FidgetSampling,
+    surface_error: f32,
+}
+
+#[repr(C)]
+#[derive(Default)]
+pub struct FidgetSamplingReport {
+    work: FidgetSamplingStats,
+    planar_leaves: u32,
+    curved_leaves: u32,
+}
+impl From<BuildStats> for FidgetSamplingReport {
+    fn from(s: BuildStats) -> Self {
+        Self {
+            work: s.into(),
+            planar_leaves: s.planar_leaves,
+            curved_leaves: s.curved_leaves,
+        }
+    }
+}
+
 fn compile(nodes: &[FidgetNode], parameter_count: u32) -> Option<FidgetShape> {
     let parameters: Vec<_> = (0..parameter_count).map(|_| Var::new()).collect();
     let mut trees: Vec<Tree> = Vec::with_capacity(nodes.len());
@@ -258,14 +281,53 @@ pub unsafe extern "C" fn fidget_mesher_sample(
     stats: *mut FidgetSamplingStats,
     out: *mut *mut FidgetMesh,
 ) -> i32 {
+    let mut report = FidgetSamplingReport::default();
+    let status = unsafe {
+        fidget_mesher_sample_v2(
+            mesher,
+            values,
+            count,
+            bounds,
+            FidgetSamplingV2 {
+                sampling,
+                surface_error: 0.0,
+            },
+            &mut report,
+            out,
+        )
+    };
+    if !stats.is_null() {
+        unsafe { stats.write(report.work) };
+    }
+    status
+}
+
+/// Samples with an optional shape-local target for early curved patches.
+/// # Safety
+/// As for `fidget_mesher_sample`; non-null `stats` must address a writable
+/// sampling report with no overlap with the other arguments.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn fidget_mesher_sample_v2(
+    mesher: *mut FidgetMesher,
+    values: *const f32,
+    count: u32,
+    bounds: *const FidgetBounds,
+    options: FidgetSamplingV2,
+    stats: *mut FidgetSamplingReport,
+    out: *mut *mut FidgetMesh,
+) -> i32 {
+    let FidgetSamplingV2 {
+        sampling,
+        surface_error,
+    } = options;
     let FidgetSampling {
         depth,
         max_cells,
         planar,
     } = sampling;
-    let mut local_stats = FidgetSamplingStats::default();
+    let mut local_stats = FidgetSamplingReport::default();
     let stats = unsafe { stats.as_mut() }.unwrap_or(&mut local_stats);
-    *stats = FidgetSamplingStats::default();
+    *stats = FidgetSamplingReport::default();
     if out.is_null() {
         return INVALID_ARGUMENT;
     }
@@ -280,7 +342,9 @@ pub unsafe extern "C" fn fidget_mesher_sample(
         || (count != 0 && values.is_null())
         || !(1..=11).contains(&depth)
         || planar > 1
-        || ((depth > 8 || planar == 1) && max_cells == 0)
+        || !surface_error.is_finite()
+        || surface_error < 0.0
+        || ((depth > 8 || planar == 1 || surface_error > 0.0) && max_cells == 0)
     {
         return INVALID_ARGUMENT;
     }
@@ -322,12 +386,19 @@ pub unsafe extern "C" fn fidget_mesher_sample(
         let octree = if max_cells == 0 {
             Octree::build(&bound, &settings).ok_or(MESH_FAILED)?
         } else {
-            let build = if planar == 1 {
-                Octree::build_adaptive_planes
+            let build = if surface_error > 0.0 {
+                Octree::build_with_surface_error(
+                    &bound,
+                    &settings,
+                    max_cells,
+                    surface_error,
+                )
+            } else if planar == 1 {
+                Octree::build_adaptive_planes(&bound, &settings, max_cells)
             } else {
-                Octree::build_with_budget
+                Octree::build_with_budget(&bound, &settings, max_cells)
             };
-            match build(&bound, &settings, max_cells) {
+            match build {
                 Ok((tree, work)) => {
                     *stats = work.into();
                     tree
