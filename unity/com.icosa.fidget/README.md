@@ -94,6 +94,11 @@ depth 11 at 0.001. Each side has a two-million-cell budget. If a build reaches
 that limit, its readout reports the requested depth and the last complete mesh stays visible.
 `MeshStream.LastCurvedLeaves` counts accepted curved cells, and
 `LastWorkerMilliseconds` includes native sampling, normals and buffer writes.
+The scene also shows **ms apply**, the main-thread time for the successful
+`TryApply()` call. Select **Fixed** or **Adaptive** to draw one mesh at the same
+position with its text hidden. Once the build finishes, compare steady-state
+GPU frame times in the device profiler with the same camera, render settings
+and scene controls. **Both** restores the side-by-side view and timings.
 
 New components default to updating when property values change. Enable `Continuous`
 to generate every available frame. Updates happen in `LateUpdate`; values are

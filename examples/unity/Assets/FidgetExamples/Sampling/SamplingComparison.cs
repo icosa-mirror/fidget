@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Diagnostics;
 using Icosa.Fidget;
 using UnityEngine;
 
@@ -24,6 +25,10 @@ namespace FidgetExamples
         private MeshStream _active;
         private MeshStream _fixed, _adaptive;
         private ParameterValues _values;
+        private enum View { Both, Fixed, Adaptive }
+        private static readonly string[] ViewNames = { "Both", "Fixed", "Adaptive" };
+        private View _view;
+        private Vector3 _fixedPosition, _adaptivePosition;
 
         public static CompiledShape CompileFixture()
         {
@@ -52,6 +57,8 @@ namespace FidgetExamples
 
         private void OnEnable()
         {
+            _fixedPosition = FixedMesh.transform.localPosition;
+            _adaptivePosition = AdaptiveMesh.transform.localPosition;
             _shape = CompileFixture();
             _values = _shape.CreateParameters();
             StartCoroutine(Compare());
@@ -61,7 +68,7 @@ namespace FidgetExamples
 
         private void OnGUI()
         {
-            GUILayout.BeginArea(new Rect(12, 8, 230, 240), GUI.skin.box);
+            GUILayout.BeginArea(new Rect(12, 8, 230, 270), GUI.skin.box);
             GUILayout.Label($"Feature spacing  {FeatureSpacing:F4}");
             // Equal slider distances halve or double the cell size.
             float logSpacing = Mathf.Log(FeatureSpacing, 2);
@@ -73,7 +80,22 @@ namespace FidgetExamples
 #if FIDGET_CURVED_SAMPLING
             SurfaceError = Slider("Surface error", SurfaceError, 0, 0.012f);
 #endif
+            var view = (View)GUILayout.Toolbar((int)_view, ViewNames);
+            if (view != _view) SetView(view);
             GUILayout.EndArea();
+        }
+
+        private void SetView(View view)
+        {
+            _view = view;
+            bool both = view == View.Both;
+            var center = (_fixedPosition + _adaptivePosition) * 0.5f;
+            FixedMesh.transform.localPosition = both ? _fixedPosition : center;
+            AdaptiveMesh.transform.localPosition = both ? _adaptivePosition : center;
+            FixedMesh.gameObject.SetActive(view != View.Adaptive);
+            AdaptiveMesh.gameObject.SetActive(view != View.Fixed);
+            FixedReadout.gameObject.SetActive(both);
+            AdaptiveReadout.gameObject.SetActive(both);
         }
 
         private static float Slider(string label, float value, float min, float max)
@@ -107,7 +129,14 @@ namespace FidgetExamples
 #endif
                     _active = new MeshStream(_shape, settings);
                     _active.TrySchedule(_values);
-                    while (_active.IsPending && !_active.TryApply()) yield return null;
+                    double applyMilliseconds = 0;
+                    while (_active.IsPending)
+                    {
+                        long start = Stopwatch.GetTimestamp();
+                        if (_active.TryApply())
+                            applyMilliseconds = (Stopwatch.GetTimestamp() - start) * (1000.0 / Stopwatch.Frequency);
+                        else if (_active.IsPending) yield return null;
+                    }
                     if (_active.CellBudgetExceeded)
                     {
                         readout.text = $"{label} · depth {settings.SamplingDepth}\n{_active.LastVisitedCells:N0} cells\nCell budget exhausted";
@@ -121,7 +150,9 @@ namespace FidgetExamples
                         else { _fixed?.Dispose(); _fixed = _active; }
                         readout.text = $"{label} · depth {_active.AppliedDepth}\n{_active.LastVisitedCells:N0} cells · {_active.TriangleCount:N0} triangles";
 #if FIDGET_WORKER_TIMING
-                        readout.text += $"\n{_active.LastWorkerMilliseconds:F1} ms worker time";
+                        readout.text += $"\n{_active.LastWorkerMilliseconds:F1} ms worker · {applyMilliseconds:F2} ms apply";
+#else
+                        readout.text += $"\n{applyMilliseconds:F2} ms apply";
 #endif
 #if FIDGET_CURVED_SAMPLING
                         if (settings.SurfaceError > 0) readout.text += $"\n{_active.LastCurvedLeaves:N0} curved cells";
@@ -141,6 +172,7 @@ namespace FidgetExamples
 
         private void OnDisable()
         {
+            if (_view != View.Both && FixedMesh && AdaptiveMesh && FixedReadout && AdaptiveReadout) SetView(View.Both);
             StopAllCoroutines();
             if (FixedMesh != null) FixedMesh.sharedMesh = null;
             if (AdaptiveMesh != null) AdaptiveMesh.sharedMesh = null;
