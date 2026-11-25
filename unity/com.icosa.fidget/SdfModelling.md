@@ -3,7 +3,7 @@
 `ShapeBuilder` and `ShapeBuilder<T>` provide the shape, join, repetition and
 coordinate operations adapted from Mercury hg_sdf and Inigo Quilez's distance
 functions. Package 0.7.0 consolidates these into the existing builder API;
-`HgSdf` and `IqSdf` are no longer public APIs. Native ABI remains 6.
+`HgSdf` and `IqSdf` are no longer public APIs.
 
 ```csharp
 protected override Expression Define(ShapeBuilder<MyShape> shape)

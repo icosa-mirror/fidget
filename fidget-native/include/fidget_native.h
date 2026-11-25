@@ -82,6 +82,12 @@ int32_t fidget_mesher_generate_with_budget(FidgetMesher *mesher, const float *va
     uint32_t count, const FidgetBounds *bounds, uint32_t depth, uint32_t max_cells,
     FidgetSamplingStats *stats, FidgetMesh **out_mesh);
 
+/* ABI v8. Set planar to 1 to sample eligible planar regions early, or
+ * 0 for fixed depth. Adaptive sampling requires a positive cell budget. */
+typedef struct FidgetSampling { uint32_t depth, max_cells, planar; } FidgetSampling;
+int32_t fidget_mesher_sample(FidgetMesher *mesher, const float *values, uint32_t count,
+    const FidgetBounds *bounds, FidgetSampling sampling, FidgetSamplingStats *stats, FidgetMesh **out_mesh);
+
 /* Optional area-weighted smooth normals: capacity counts vertices, not floats.
  * Output contains three floats per vertex. No additional allocation occurs.
  */

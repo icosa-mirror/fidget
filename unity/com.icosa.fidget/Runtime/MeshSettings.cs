@@ -16,9 +16,12 @@ namespace Icosa.Fidget
         public MeshNormals Normals;
         [Min(0)] public float FeatureSpacing;
         [Min(0)] public int CellBudget;
+        public bool AdaptivePlanes;
+        public MeshSettings(Bounds bounds, int depth, MeshNormals normals)
+            : this(bounds, depth, normals, 0, 0, false) { }
         public MeshSettings(Bounds bounds, int depth = 6, MeshNormals normals = MeshNormals.None,
-            float featureSpacing = 0, int cellBudget = 0)
-        { Bounds = bounds; Depth = depth; Normals = normals; FeatureSpacing = featureSpacing; CellBudget = cellBudget; }
+            float featureSpacing = 0, int cellBudget = 0, bool adaptivePlanes = false)
+        { Bounds = bounds; Depth = depth; Normals = normals; FeatureSpacing = featureSpacing; CellBudget = cellBudget; AdaptivePlanes = adaptivePlanes; }
 
         /// <summary>Depth of the finest sampling cells, capped at MaxDepth.</summary>
         public int SamplingDepth
@@ -42,7 +45,7 @@ namespace Icosa.Fidget
         internal int BudgetFor(int depth)
         {
             if (CellBudget < 0) throw new ArgumentOutOfRangeException(nameof(CellBudget));
-            return CellBudget == 0 && (depth > 8 || FeatureSpacing > 0) ? DefaultCellBudget : CellBudget;
+            return CellBudget == 0 && (depth > 8 || FeatureSpacing > 0 || AdaptivePlanes) ? DefaultCellBudget : CellBudget;
         }
         internal static void ValidateDepth(int depth)
         {

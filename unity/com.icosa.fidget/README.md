@@ -66,13 +66,20 @@ larger than requested. Read `Stream.AppliedCellSpacing` and `Stream.AppliedDepth
 after a successful update.
 
 `CellBudget` limits visited octree cells per request. A value of zero uses
-one million cells for depths above 8 or spacing-based requests. Existing
+one million cells for depths above 8, spacing-based requests, or adaptive planes. Existing
 explicit depths through 8 run without a budget by default. If a request
 exhausts its budget, the previous complete mesh stays visible.
 `TryApply()` returns false, `IsPending` becomes false, and
 `CellBudgetExceeded` and `LastVisitedCells` report the outcome. Raise the
 budget or select coarser sampling to retry. The budget counts cells, so time
 and memory also depend on the expression and the surface inside the bounds.
+
+Enable **Adaptive Planes** to finish eligible flat patches early. The VM must
+reduce the field within the cell to a single axis with simple constant
+arithmetic, optionally including one absolute value. For example, a block cut
+by a cylindrical bore can spend fewer samples on its faces while retaining
+the requested sampling depth at the rim. More complex expressions, including
+many parameterized or rotated planes, fall back to ordinary sampling.
 
 New components default to updating when property values change. Enable `Continuous`
 to generate every available frame. Updates happen in `LateUpdate`; values are
@@ -183,7 +190,7 @@ freeing resources a job still uses. An overload accepts a per-request depth.
 alternatives, surface features, joins, repetition and deformations in the same
 expression-first API. The formulas from Mercury hg_sdf and Inigo Quilez are
 available through `ShapeBuilder` and `ShapeBuilder<T>`; package 0.7.0 removes the
-separate public `HgSdf` and `IqSdf` APIs. Native ABI remains 6.
+separate public `HgSdf` and `IqSdf` APIs.
 
 ```csharp
 var box = shape.RoundedBox(new Expression3(0.6f, 0.8f, 0.4f), radius);
@@ -242,7 +249,7 @@ Conventions and differences from the Rust structs:
   field values across cell boundaries to avoid discontinuities and use explicit
   meshing bounds to select a finite region.
 
-The current package requires **ABI 7** native libraries. Rebuild/package matching native
+The current package requires **ABI 8** native libraries. Rebuild/package matching native
 libraries before using updated C# sources with an older published package.
 The **Shape Library** sample scene uses four small `FidgetMesh<T>` components to show
 extrusion, blending, lofting, revolution,

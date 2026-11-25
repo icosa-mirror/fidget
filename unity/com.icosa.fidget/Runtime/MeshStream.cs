@@ -39,8 +39,9 @@ namespace Icosa.Fidget
                 try
                 {
                     var bounds = new Native.Bounds { Min = Settings.Bounds.min, Max = Settings.Bounds.max };
-                    result.Status = Native.fidget_mesher_generate_with_budget(Mesher, Parameters.GetUnsafeReadOnlyPtr(),
-                        (uint)Parameters.Length, in bounds, (uint)Settings.Depth, (uint)Settings.CellBudget, out result.Work, out handle);
+                    var sampling = new Native.Sampling { Depth = (uint)Settings.Depth, MaxCells = (uint)Settings.CellBudget, Planar = Settings.AdaptivePlanes ? 1u : 0u };
+                    result.Status = Native.fidget_mesher_sample(Mesher, Parameters.GetUnsafeReadOnlyPtr(),
+                        (uint)Parameters.Length, in bounds, sampling, out result.Work, out handle);
                     if (result.Status != 0) return;
                     if (Settings.Normals == MeshNormals.Surface)
                     {
@@ -147,9 +148,9 @@ namespace Icosa.Fidget
 
         /// <summary>Overrides depth for this request without rebuilding the shape or replacing the Mesh.</summary>
         public bool TrySchedule(ParameterValues parameters, int depth)
-            => TrySchedule(parameters, depth, Settings.BudgetFor(depth), true);
+            => TrySchedule(parameters, depth, Settings.BudgetFor(depth), Settings.AdaptivePlanes, true);
 
-        internal bool TrySchedule(ParameterValues parameters, int depth, int cellBudget, bool captureBindings)
+        internal bool TrySchedule(ParameterValues parameters, int depth, int cellBudget, bool adaptivePlanes, bool captureBindings)
         {
             ThrowIfDisposed();
             if (_pending) return false;
@@ -157,6 +158,7 @@ namespace Icosa.Fidget
             var settings = Settings;
             settings.Depth = depth;
             settings.CellBudget = cellBudget;
+            settings.AdaptivePlanes = adaptivePlanes;
             if (parameters == null || parameters.Shape != _shape) throw new ArgumentException("Values must come from the stream's compiled shape.", nameof(parameters));
             if (captureBindings) parameters.CaptureBindings();
             // A dedicated snapshot prevents writes on the main thread from racing the worker.

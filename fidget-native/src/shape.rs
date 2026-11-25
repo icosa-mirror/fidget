@@ -44,6 +44,13 @@ pub struct FidgetSamplingStats {
     finest_leaves: u32,
 }
 
+#[repr(C)]
+pub struct FidgetSampling {
+    depth: u32,
+    max_cells: u32,
+    planar: u32,
+}
+
 impl From<BuildStats> for FidgetSamplingStats {
     fn from(s: BuildStats) -> Self {
         Self {
@@ -221,6 +228,41 @@ pub unsafe extern "C" fn fidget_mesher_generate_with_budget(
     stats: *mut FidgetSamplingStats,
     out: *mut *mut FidgetMesh,
 ) -> i32 {
+    unsafe {
+        fidget_mesher_sample(
+            mesher,
+            values,
+            count,
+            bounds,
+            FidgetSampling {
+                depth,
+                max_cells,
+                planar: 0,
+            },
+            stats,
+            out,
+        )
+    }
+}
+
+/// Samples using fixed depth or adaptive planar leaves.
+/// # Safety
+/// Same pointer contract as `fidget_mesher_generate_with_budget`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn fidget_mesher_sample(
+    mesher: *mut FidgetMesher,
+    values: *const f32,
+    count: u32,
+    bounds: *const FidgetBounds,
+    sampling: FidgetSampling,
+    stats: *mut FidgetSamplingStats,
+    out: *mut *mut FidgetMesh,
+) -> i32 {
+    let FidgetSampling {
+        depth,
+        max_cells,
+        planar,
+    } = sampling;
     let mut local_stats = FidgetSamplingStats::default();
     let stats = unsafe { stats.as_mut() }.unwrap_or(&mut local_stats);
     *stats = FidgetSamplingStats::default();
@@ -237,7 +279,8 @@ pub unsafe extern "C" fn fidget_mesher_generate_with_budget(
     if count as usize != mesher.compiled.parameters.len()
         || (count != 0 && values.is_null())
         || !(1..=11).contains(&depth)
-        || (depth > 8 && max_cells == 0)
+        || planar > 1
+        || ((depth > 8 || planar == 1) && max_cells == 0)
     {
         return INVALID_ARGUMENT;
     }
@@ -279,7 +322,12 @@ pub unsafe extern "C" fn fidget_mesher_generate_with_budget(
         let octree = if max_cells == 0 {
             Octree::build(&bound, &settings).ok_or(MESH_FAILED)?
         } else {
-            match Octree::build_with_budget(&bound, &settings, max_cells) {
+            let build = if planar == 1 {
+                Octree::build_adaptive_planes
+            } else {
+                Octree::build_with_budget
+            };
+            match build(&bound, &settings, max_cells) {
                 Ok((tree, work)) => {
                     *stats = work.into();
                     tree

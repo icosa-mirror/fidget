@@ -33,6 +33,7 @@ SYMBOLS = (
     "fidget_mesher_create",
     "fidget_mesher_generate",
     "fidget_mesher_generate_with_budget",
+    "fidget_mesher_sample",
     "fidget_mesher_free",
     "fidget_mesh_write_normals",
     "fidget_mesh_prepare_surface_normals",
@@ -186,7 +187,7 @@ def main():
     commit = capture(["git", "rev-parse", "HEAD"], env).strip()
     dirty = bool(capture(["git", "status", "--porcelain", "--untracked-files=normal"], env).strip())
     (package / "BUILD-INFO.txt").write_text(
-        f"ABI: 7\nTarget: {args.target}\nSource commit: {commit}\nWorking tree dirty: {dirty}\n"
+        f"ABI: 8\nTarget: {args.target}\nSource commit: {commit}\nWorking tree dirty: {dirty}\n"
         f"{rust_version}{ndk_info}\nNative static libs: {native_libs}\n"
         f"Desktop C smoke executed: {args.smoke}\niOS C probe linked: {ios}\n",
         encoding="utf-8",

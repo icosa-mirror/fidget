@@ -15,6 +15,8 @@ namespace Icosa.Fidget
         [Min(0)] public float FeatureSpacing;
         [Tooltip("Maximum cells per build. Zero uses the default budget for high detail and feature spacing.")]
         [Min(0)] public int CellBudget;
+        [Tooltip("Finish eligible flat regions early. Curves and unresolved cells continue to the requested detail.")]
+        public bool AdaptivePlanes;
         public ParameterValues Parameters { get; private set; }
         public MeshStream Stream { get; private set; }
         private CompiledShape _shape;
@@ -24,6 +26,7 @@ namespace Icosa.Fidget
         private bool _requested;
         private int _scheduledDepth;
         private int _scheduledBudget;
+        private bool _scheduledAdaptivePlanes;
 
         /// <summary>Transfers ownership of shape to this component. Use MeshStream directly to share a shape between objects.</summary>
         public void Initialize(CompiledShape shape, MeshSettings settings)
@@ -38,6 +41,7 @@ namespace Icosa.Fidget
             Detail = settings.Depth;
             FeatureSpacing = settings.FeatureSpacing;
             CellBudget = settings.CellBudget;
+            AdaptivePlanes = settings.AdaptivePlanes;
             Parameters = shape.CreateParameters();
             _requested = true;
             if (isActiveAndEnabled) StartStream();
@@ -75,18 +79,20 @@ namespace Icosa.Fidget
             _settings.Depth = Detail;
             _settings.FeatureSpacing = FeatureSpacing;
             _settings.CellBudget = CellBudget;
+            _settings.AdaptivePlanes = AdaptivePlanes;
             int depth = _settings.SamplingDepth;
             int budget = _settings.BudgetFor(depth);
-            if (depth != _scheduledDepth || budget != _scheduledBudget) _requested = true;
+            if (depth != _scheduledDepth || budget != _scheduledBudget || AdaptivePlanes != _scheduledAdaptivePlanes) _requested = true;
             bool wasPending = Stream.IsPending;
             Stream.TryApply();
             if (wasPending && !Stream.IsPending && Stream.CellBudgetExceeded)
                 Debug.LogWarning($"Fidget stopped after {Stream.LastVisitedCells} cells on {name}. Increase Cell Budget or reduce the requested detail.", this);
             if (!_requested && (!Continuous || (Stream.CellBudgetExceeded && !Stream.IsPending && Stream.HasScheduledValues(Parameters)))) return;
-            if (Stream.TrySchedule(Parameters, depth, budget, false))
+            if (Stream.TrySchedule(Parameters, depth, budget, AdaptivePlanes, false))
             {
                 _scheduledDepth = depth;
                 _scheduledBudget = budget;
+                _scheduledAdaptivePlanes = AdaptivePlanes;
                 _requested = false;
             }
         }

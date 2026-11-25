@@ -63,6 +63,13 @@ static int parameterized_shape(void) {
     CHECK(work.visited > 8 && work.finest_leaves > 0);
     CHECK(fidget_mesh_get_counts(fine, &fine_counts) == FIDGET_OK && fine_counts.index_count > 0);
     fidget_mesh_free(fine);
+    FidgetSampling sampling = {11, 10000, 1};
+    CHECK(fidget_mesher_sample(a, &tiny, 1, &domain, sampling, &work, &fine) == FIDGET_OK);
+    CHECK(work.finest_leaves > 0 && work.visited <= sampling.max_cells);
+    fidget_mesh_free(fine);
+    sampling.planar = 2;
+    CHECK(fidget_mesher_sample(a, &tiny, 1, &domain, sampling, &work, &invalid) == FIDGET_INVALID_ARGUMENT);
+    CHECK(invalid == NULL && work.visited == 0);
     CHECK(fidget_mesher_generate_with_budget(a, &tiny, 1, &domain, 12, 10000, &work, &invalid) == FIDGET_INVALID_ARGUMENT);
     CHECK(invalid == NULL);
     float value = NAN;
@@ -125,7 +132,7 @@ int main(void) {
     FidgetMesh *mesh = NULL;
     FidgetMeshCounts counts = {0};
     FidgetBounds bounds = {0};
-    CHECK(fidget_native_abi_version() == 7);
+    CHECK(fidget_native_abi_version() == 8);
     CHECK(fidget_mesh_sphere(0.6f, 4, NULL) == FIDGET_INVALID_ARGUMENT);
     CHECK(fidget_mesh_sphere(NAN, 4, &mesh) == FIDGET_INVALID_ARGUMENT);
     CHECK(mesh == NULL);

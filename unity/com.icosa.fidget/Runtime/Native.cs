@@ -6,7 +6,7 @@ namespace Icosa.Fidget
 {
     internal static unsafe class Native
     {
-        internal const uint AbiVersion = 7;
+        internal const uint AbiVersion = 8;
         internal const int CellBudgetExceeded = 4;
 
         [StructLayout(LayoutKind.Sequential)]
@@ -46,6 +46,11 @@ namespace Icosa.Fidget
         {
             public uint Visited, IntervalRejections, FinestLeaves;
         }
+        [StructLayout(LayoutKind.Sequential)]
+        internal struct Sampling
+        {
+            public uint Depth, MaxCells, Planar;
+        }
 
         [StructLayout(LayoutKind.Sequential)]
         internal struct Bounds
@@ -75,8 +80,8 @@ namespace Icosa.Fidget
         [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
         internal static extern int fidget_mesher_generate(IntPtr mesher, void* values, uint count, in Bounds bounds, uint depth, out IntPtr mesh);
         [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
-        internal static extern int fidget_mesher_generate_with_budget(IntPtr mesher, void* values, uint count, in Bounds bounds,
-            uint depth, uint maxCells, out SamplingStats stats, out IntPtr mesh);
+        internal static extern int fidget_mesher_sample(IntPtr mesher, void* values, uint count, in Bounds bounds,
+            Sampling sampling, out SamplingStats stats, out IntPtr mesh);
         [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
         internal static extern void fidget_mesher_free(IntPtr mesher);
         [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]

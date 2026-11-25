@@ -4,7 +4,26 @@ Design proposal for the Rust mesher and Unity wrapper.
 
 A model containing a large flat face and a small rounded cut should spend most of its sampling work around the cut. A union of widely spaced parts should retain a specified local detail level as their separation grows, within explicit depth and work limits. Both cases should produce a single mesh, including when a thin bridge connects the parts.
 
-## Current behavior
+## Implemented sampling controls
+
+Unity supports explicit detail through 11 and opt-in feature spacing in shape-local units.
+The longest bounds axis determines the depth needed for that spacing. High-detail,
+spacing-based and adaptive builds have a configurable cell budget. An interrupted
+request preserves the last completed mesh in the stream.
+
+The first adaptive policy, **Adaptive Planes**, uses the VM's regionally simplified
+expression. It accepts a cell early when a unary affine chain, optionally folded
+once by absolute value, has opposite signs on the two end faces of its varying axis. It uses
+axis-aligned sampling bounds and limits early acceptance to four levels above the
+finest depth. Curved regions continue to the selected depth. Rust fixtures check
+a drilled block at three grid offsets, disconnected spheres, and a thin bridge.
+The Unity Editor integration check exercises a drilled block with surface normals,
+depth 11, and recovery after budget exhaustion.
+
+General curved-patch acceptance using a local surface-error tolerance and a
+parallel adaptive builder remain open.
+
+## Fixed-depth behavior
 
 Fidget already produces an adaptive output octree. In [octree.rs](fidget-mesh/src/octree.rs), the builder evaluates the field over each cell using interval arithmetic. A strictly positive or negative interval settles that cell immediately. For intervals that include zero, the recursive path descends to the requested depth before evaluating the leaf. The leaf uses corner signs to select edge crossings. A small enclosed surface can therefore disappear when every corner has the same sign. The existing depth-zero sphere test illustrates this case.
 
