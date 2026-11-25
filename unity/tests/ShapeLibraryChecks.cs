@@ -74,6 +74,16 @@ static partial class ShapeLibraryChecks
     }
     static void Main()
     {
+        var sampling = new MeshSettings(new Bounds(Vector3.zero, new Vector3(2, 1, 1)), featureSpacing: 0.004f);
+        Near(sampling.SamplingDepth, 9);
+        sampling.Bounds = new Bounds(Vector3.zero, new Vector3(2, 8, 1));
+        Near(sampling.SamplingDepth, 11);
+        Near(sampling.LongestCellEdge(sampling.SamplingDepth), 8f / 2048);
+        sampling.FeatureSpacing = float.Epsilon;
+        Near(sampling.SamplingDepth, 11);
+        sampling.FeatureSpacing = 0;
+        Near(sampling.SamplingDepth, 6);
+        Near(sampling.BudgetFor(6), 0);
         var s = new ShapeBuilder();
         var zero = Vector3.zero;
         Near(Value(s.Circle(new Vector2(1,2), 0.5f), new Vector3(1,2,8)), -0.5f);

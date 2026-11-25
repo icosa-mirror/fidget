@@ -56,6 +56,24 @@ owns the native resources and Unity mesh. `Detail` defaults to 6; `Bounds` and
 `[field: SerializeField]` to a property to expose its backing field in the Inspector,
 as shown in the example components.
 
+`Detail` ranges from 1 to 11. Each additional level halves the finest
+cell edge on each axis. To select depth from the mesh bounds, set
+`FeatureSpacing` to the desired longest cell edge in shape-local units.
+For example, spacing 0.004 selects depth 9 for a two-unit cube and depth 11
+for an eight-unit cube. Zero selects the explicit Detail setting. Small features
+can still fall between samples. At the depth ceiling the actual spacing may be
+larger than requested. Read `Stream.AppliedCellSpacing` and `Stream.AppliedDepth`
+after a successful update.
+
+`CellBudget` limits visited octree cells per request. A value of zero uses
+one million cells for depths above 8 or spacing-based requests. Existing
+explicit depths through 8 run without a budget by default. If a request
+exhausts its budget, the previous complete mesh stays visible.
+`TryApply()` returns false, `IsPending` becomes false, and
+`CellBudgetExceeded` and `LastVisitedCells` report the outcome. Raise the
+budget or select coarser sampling to retry. The budget counts cells, so time
+and memory also depend on the expression and the surface inside the bounds.
+
 New components default to updating when property values change. Enable `Continuous`
 to generate every available frame. Updates happen in `LateUpdate`; values are
 snapshotted before the worker runs. Disabling completes outstanding work and
