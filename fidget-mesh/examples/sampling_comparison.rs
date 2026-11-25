@@ -229,12 +229,21 @@ fn ray_crossings(mesh: &Mesh) -> Vec<Vec<f64>> {
 }
 
 fn main() {
+    let mut depths = Vec::new();
+    for arg in std::env::args().skip(1) {
+        let depth = arg.parse::<u8>().expect("expected a depth from 6 to 9");
+        assert!((6..=9).contains(&depth), "expected a depth from 6 to 9");
+        depths.push(depth);
+    }
+    if depths.is_empty() {
+        depths.extend([6, 7, 8]);
+    }
     let (shape, values) = fixture();
     let shape = shape.bind(&values).unwrap();
     println!(
-        "depth,phase,mode,visited,planar_leaves,curved_leaves,triangles,median_ms,peak_rust_heap_bytes,max_field_residual,max_probe_distance,max_ray_shift_from_depth9,rays_with_different_crossing_count"
+        "depth,phase,mode,visited,planar_leaves,curved_leaves,triangles,median_ms,peak_rust_heap_bytes,max_field_residual,max_probe_distance,max_ray_shift_from_reference,rays_with_different_crossing_count,reference_depth"
     );
-    for depth in [6, 7, 8] {
+    for depth in depths {
         for phase in [0.0, 0.37, 0.81] {
             let edge = 2.0 / (1 << depth) as f32;
             let mut cfg = Settings {
@@ -246,7 +255,7 @@ fn main() {
                 cfg.world_to_model[(axis, 3)] = edge * phase * scale;
             }
             let fine = Settings {
-                depth: 9,
+                depth: (depth + 1).max(9),
                 threads: None,
                 world_to_model: cfg.world_to_model,
                 ..Default::default()
@@ -308,12 +317,13 @@ fn main() {
                         }
                         let name = names[mode];
                         println!(
-                            "{depth},{phase:.2},{name},{},{},{},{},{:.2},{peak},{residual:.6},{distance:.6},{ray_shift:.6},{crossing_count_changes}",
+                            "{depth},{phase:.2},{name},{},{},{},{},{:.2},{peak},{residual:.6},{distance:.6},{ray_shift:.6},{crossing_count_changes},{}",
                             stats.visited,
                             stats.planar_leaves,
                             stats.curved_leaves,
                             mesh.triangles.len(),
-                            times[mode][2]
+                            times[mode][2],
+                            fine.depth
                         );
                     }
                 }

@@ -35,6 +35,9 @@ It reports median build-plus-traversal time over five measured runs and the
 peak additional live Rust heap for that operation. Unity normals, mesh uploads
 and process RSS are outside this measurement.
 
+Pass specific depths after `--`, for example `-- 8 9`, to run just those
+comparisons. Depth 9 uses a depth-10 reference at the same grid offset.
+
 On the Windows host at depth 8 and zero grid offset, the fixed build visited
 160,649 cells and peaked at 13,664,256 bytes. Planar sampling visited 84,297
 cells and peaked at 7,323,648 bytes. A curved tolerance of 0.008 visited 73,609
