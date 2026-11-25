@@ -13,6 +13,7 @@ const OK: i32 = 0;
 const INVALID_ARGUMENT: i32 = 1;
 const MESH_FAILED: i32 = 2;
 const PANIC: i32 = 3;
+const CELL_BUDGET: i32 = 4;
 
 /// Opaque allocation owned by this library. Release with `fidget_mesh_free`.
 pub struct FidgetMesh {
@@ -39,7 +40,7 @@ pub struct FidgetBounds {
 /// Version of the C ABI defined by `include/fidget_native.h`.
 #[unsafe(no_mangle)]
 pub extern "C" fn fidget_native_abi_version() -> u32 {
-    6
+    7
 }
 
 /// Meshes a sphere at the origin inside the fixed [-1, 1]^3 domain.

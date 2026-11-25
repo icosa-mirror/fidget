@@ -12,7 +12,7 @@ typedef struct FidgetMesh FidgetMesh;
 typedef struct FidgetShape FidgetShape;
 typedef struct FidgetMesher FidgetMesher;
 
-/* ABI v6 adds expression math and conditionals for hg_sdf. */
+/* ABI v7 adds budgeted high-detail meshing and sampling statistics. */
 typedef struct FidgetNode {
     uint32_t opcode, a, b, c, d;
     float value;
@@ -44,7 +44,8 @@ enum FidgetStatus {
     FIDGET_OK = 0,
     FIDGET_INVALID_ARGUMENT = 1,
     FIDGET_MESH_FAILED = 2,
-    FIDGET_PANIC = 3
+    FIDGET_PANIC = 3,
+    FIDGET_CELL_BUDGET = 4
 };
 
 uint32_t fidget_native_abi_version(void);
@@ -68,6 +69,18 @@ int32_t fidget_mesher_create(const FidgetShape *shape, FidgetMesher **out_mesher
 int32_t fidget_mesher_generate(FidgetMesher *mesher, const float *values,
     uint32_t count, const FidgetBounds *bounds, uint32_t depth, FidgetMesh **out_mesh);
 void fidget_mesher_free(FidgetMesher *mesher);
+
+typedef struct FidgetSamplingStats {
+    uint32_t visited, interval_rejections, finest_leaves;
+} FidgetSamplingStats;
+
+/* Depth 1..11. A positive max_cells bounds interval evaluations. Zero uses
+ * the legacy unmetered path and is accepted only at depths 1..8. Optional
+ * stats are zero for unmetered builds. On budget exhaustion, out_mesh is
+ * null, stats describe work done and the mesher is ready for another call. */
+int32_t fidget_mesher_generate_with_budget(FidgetMesher *mesher, const float *values,
+    uint32_t count, const FidgetBounds *bounds, uint32_t depth, uint32_t max_cells,
+    FidgetSamplingStats *stats, FidgetMesh **out_mesh);
 
 /* Optional area-weighted smooth normals: capacity counts vertices, not floats.
  * Output contains three floats per vertex. No additional allocation occurs.

@@ -3,7 +3,7 @@ use crate::{
     FidgetBounds, FidgetMesh, INVALID_ARGUMENT, MESH_FAILED, OK, PANIC,
 };
 use fidget_core::{context::Tree, shape::ShapeVars, var::Var, vm::VmShape};
-use fidget_mesh::{Octree, Settings};
+use fidget_mesh::{BuildInterrupted, BuildStats, Octree, Settings};
 use std::{
     panic::{AssertUnwindSafe, catch_unwind},
     ptr,
@@ -34,6 +34,24 @@ pub struct FidgetMesher {
     compiled: Arc<Compiled>,
     values: ShapeVars<f32>,
     surface: crate::surface::SurfaceWorkspace,
+}
+
+#[repr(C)]
+#[derive(Default)]
+pub struct FidgetSamplingStats {
+    visited: u32,
+    interval_rejections: u32,
+    finest_leaves: u32,
+}
+
+impl From<BuildStats> for FidgetSamplingStats {
+    fn from(s: BuildStats) -> Self {
+        Self {
+            visited: s.visited,
+            interval_rejections: s.interval_rejections,
+            finest_leaves: s.finest_leaves,
+        }
+    }
 }
 
 fn compile(nodes: &[FidgetNode], parameter_count: u32) -> Option<FidgetShape> {
@@ -174,6 +192,38 @@ pub unsafe extern "C" fn fidget_mesher_generate(
     depth: u32,
     out: *mut *mut FidgetMesh,
 ) -> i32 {
+    unsafe {
+        fidget_mesher_generate_with_budget(
+            mesher,
+            values,
+            count,
+            bounds,
+            depth,
+            0,
+            ptr::null_mut(),
+            out,
+        )
+    }
+}
+
+/// Samples at depth 1–11. A nonzero work budget is mandatory above depth 8.
+/// # Safety
+/// Same pointer contract as `fidget_mesher_generate`. Non-null `stats` must
+/// point to independent writable storage.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn fidget_mesher_generate_with_budget(
+    mesher: *mut FidgetMesher,
+    values: *const f32,
+    count: u32,
+    bounds: *const FidgetBounds,
+    depth: u32,
+    max_cells: u32,
+    stats: *mut FidgetSamplingStats,
+    out: *mut *mut FidgetMesh,
+) -> i32 {
+    let mut local_stats = FidgetSamplingStats::default();
+    let stats = unsafe { stats.as_mut() }.unwrap_or(&mut local_stats);
+    *stats = FidgetSamplingStats::default();
     if out.is_null() {
         return INVALID_ARGUMENT;
     }
@@ -186,7 +236,8 @@ pub unsafe extern "C" fn fidget_mesher_generate(
     };
     if count as usize != mesher.compiled.parameters.len()
         || (count != 0 && values.is_null())
-        || !(1..=8).contains(&depth)
+        || !(1..=11).contains(&depth)
+        || (depth > 8 && max_cells == 0)
     {
         return INVALID_ARGUMENT;
     }
@@ -214,26 +265,49 @@ pub unsafe extern "C" fn fidget_mesher_generate(
         for (var, value) in mesher.compiled.parameters.iter().zip(values) {
             mesher.values.insert(var.index().unwrap(), *value);
         }
-        let bound = mesher.compiled.shape.bind(&mesher.values).ok()?;
+        let bound = mesher
+            .compiled
+            .shape
+            .bind(&mesher.values)
+            .map_err(|_| MESH_FAILED)?;
         let settings = Settings {
             depth: depth as u8,
             world_to_model: transform,
             threads: None,
             ..Default::default()
         };
-        let mesh = Octree::build(&bound, &settings)?.walk_dual();
-        u32::try_from(mesh.vertices.len()).ok()?;
-        u32::try_from(mesh.triangles.len().checked_mul(3)?).ok()?;
-        Some(Box::new(FidgetMesh {
+        let octree = if max_cells == 0 {
+            Octree::build(&bound, &settings).ok_or(MESH_FAILED)?
+        } else {
+            match Octree::build_with_budget(&bound, &settings, max_cells) {
+                Ok((tree, work)) => {
+                    *stats = work.into();
+                    tree
+                }
+                Err(BuildInterrupted::CellBudget(work)) => {
+                    *stats = work.into();
+                    return Err(crate::CELL_BUDGET);
+                }
+                Err(BuildInterrupted::Cancelled(work)) => {
+                    *stats = work.into();
+                    return Err(MESH_FAILED);
+                }
+            }
+        };
+        let mesh = octree.walk_dual();
+        u32::try_from(mesh.vertices.len()).map_err(|_| MESH_FAILED)?;
+        u32::try_from(mesh.triangles.len().checked_mul(3).ok_or(MESH_FAILED)?)
+            .map_err(|_| MESH_FAILED)?;
+        Ok(Box::new(FidgetMesh {
             mesh,
             normals: None,
         }))
     })) {
-        Ok(Some(mesh)) => {
+        Ok(Ok(mesh)) => {
             unsafe { out.write(Box::into_raw(mesh)) };
             OK
         }
-        Ok(None) => MESH_FAILED,
+        Ok(Err(status)) => status,
         Err(_) => PANIC,
     }
 }

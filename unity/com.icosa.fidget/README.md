@@ -224,7 +224,7 @@ Conventions and differences from the Rust structs:
   field values across cell boundaries to avoid discontinuities and use explicit
   meshing bounds to select a finite region.
 
-The current package requires **ABI 6** native libraries. Rebuild/package matching native
+The current package requires **ABI 7** native libraries. Rebuild/package matching native
 libraries before using updated C# sources with an older published package.
 The **Shape Library** sample scene uses four small `FidgetMesh<T>` components to show
 extrusion, blending, lofting, revolution,

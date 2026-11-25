@@ -6,7 +6,7 @@ DYLD_LIBRARY_PATH="$PWD/target/native-artifacts/aarch64-apple-darwin" \
   -p:UnityManagedPath=/Applications/Unity/Hub/Editor/6000.6.0f1/Unity.app/Contents/Resources/Scripting/Managed
 ```
 
-Build the matching ABI 6 native library first with `fidget-native/build.py`.
+Build the matching ABI 7 native library first with `fidget-native/build.py`.
 On Linux set `LD_LIBRARY_PATH`; on Windows put the native DLL on `PATH`.
 `UnityManagedPath` is the directory containing the `UnityEngine` assembly folder.
 The checks compile the production builder sources against real Unity types,

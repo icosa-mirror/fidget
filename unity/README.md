@@ -22,7 +22,7 @@ Runtime source is in `com.icosa.fidget`. The runnable project's
 `examples/unity/Assets/FidgetExamples` folder is the single source for UPM samples;
 packaging copies it to `Samples~/Examples`, preserving its asset GUIDs. Native
 binaries and generated package files are assembled under `target/`, not committed.
-Rust/CI build artifacts must contain `ABI: 6` in `BUILD-INFO.txt`; older archives
+Rust/CI build artifacts must contain `ABI: 7` in `BUILD-INFO.txt`; older archives
 intentionally fail this check.
 
 For a local Windows package:
