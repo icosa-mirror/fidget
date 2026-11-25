@@ -60,7 +60,7 @@ use fidget_core::render::{CancelToken, ThreadPool};
 pub mod types;
 
 // Re-export the main Octree type as public
-pub use octree::Octree;
+pub use octree::{BuildInterrupted, BuildStats, Octree};
 
 ////////////////////////////////////////////////////////////////////////////////
 

@@ -20,6 +20,26 @@ use fidget_core::{
 };
 use std::collections::VecDeque;
 
+/// Sampling work performed by a budgeted octree build.
+#[derive(Debug, Default, Copy, Clone)]
+pub struct BuildStats {
+    /// Cells that received an interval evaluation.
+    pub visited: u32,
+    /// Cells classified without sampling their corners.
+    pub interval_rejections: u32,
+    /// Cells sampled at the requested finest depth.
+    pub finest_leaves: u32,
+}
+
+/// A build stopped before it had a complete tree.
+#[derive(Debug)]
+pub enum BuildInterrupted {
+    /// The caller signalled cancellation.
+    Cancelled(BuildStats),
+    /// Visiting the next cell would exceed the work limit.
+    CellBudget(BuildStats),
+}
+
 /// Octree storing occupancy and vertex positions for Manifold Dual Contouring
 #[derive(Debug)]
 pub struct Octree {
@@ -55,15 +75,44 @@ impl Octree {
     ) -> Option<Self> {
         let mut out = Self::build_inner(b, settings)?;
 
-        // Apply the transform from [-1, +1] back to model space
+        out.transform_vertices(settings);
+        Some(out)
+    }
+
+    /// Builds on the calling thread, visiting at most `max_cells` cells.
+    /// Uses the depth, transform and cancellation token from `settings`.
+    /// Interrupted builds discard partial geometry and return their counters.
+    pub fn build_with_budget<F: Function + RenderHints + Clone>(
+        b: &BoundShape<F, f32>,
+        settings: &Settings,
+        max_cells: u32,
+    ) -> Result<(Self, BuildStats), BuildInterrupted> {
+        let mut eval = RenderHandle::new(b.shape().clone());
+        let mut builder = OctreeBuilder::new(settings, b.vars());
+        builder.max_cells = max_cells;
+        if !builder.recurse::<true>(
+            &mut eval,
+            CellIndex::default(),
+            &mut LeafHermiteData::default(),
+        ) {
+            return Err(if builder.cancel.is_cancelled() {
+                BuildInterrupted::Cancelled(builder.stats)
+            } else {
+                BuildInterrupted::CellBudget(builder.stats)
+            });
+        }
+        builder.octree.transform_vertices(settings);
+        Ok((builder.octree, builder.stats))
+    }
+
+    fn transform_vertices(&mut self, settings: &Settings) {
         if settings.world_to_model != nalgebra::Matrix4::identity() {
-            for v in &mut out.verts {
+            for v in &mut self.verts {
                 let p: nalgebra::Point3<f32> = v.pos.into();
                 let q = settings.world_to_model.transform_point(&p);
                 v.pos = q.coords;
             }
         }
-        Some(out)
     }
 
     /// Performs the inner work of evaluation
@@ -82,7 +131,11 @@ impl Octree {
             let mut eval = RenderHandle::new(shape.clone());
             let mut out = OctreeBuilder::new(settings, vars);
             let mut hermite = LeafHermiteData::default();
-            if out.recurse(&mut eval, CellIndex::default(), &mut hermite) {
+            if out.recurse::<false>(
+                &mut eval,
+                CellIndex::default(),
+                &mut hermite,
+            ) {
                 Some(out.octree)
             } else {
                 None
@@ -142,7 +195,11 @@ impl Octree {
                             index: None,
                             ..*cell
                         };
-                        if !builder.recurse(eval, local_cell, &mut hermite) {
+                        if !builder.recurse::<false>(
+                            eval,
+                            local_cell,
+                            &mut hermite,
+                        ) {
                             return None;
                         }
                         let octree = std::mem::replace(
@@ -469,6 +526,8 @@ pub(crate) struct OctreeBuilder<'a, F: Function + RenderHints> {
     cancel: fidget_core::render::CancelToken,
     world_to_model: Option<&'a nalgebra::Matrix4<f32>>,
     max_depth: u8,
+    max_cells: u32,
+    stats: BuildStats,
     vars: &'a ShapeVars<f32>,
 
     eval_float_slice: ShapeBulkEval<F::FloatSliceEval>,
@@ -497,6 +556,8 @@ impl<'a, F: Function + RenderHints> OctreeBuilder<'a, F> {
 
             cancel: settings.cancel.clone(),
             max_depth: settings.depth,
+            max_cells: 0,
+            stats: BuildStats::default(),
             world_to_model,
             vars,
 
@@ -518,7 +579,7 @@ impl<'a, F: Function + RenderHints> OctreeBuilder<'a, F> {
     /// Returns `true` if recursion completed normally, or `false` if it was
     /// cancelled.
     #[must_use]
-    fn recurse(
+    fn recurse<const BUDGETED: bool>(
         &mut self,
         eval: &mut RenderHandle<F>,
         cell: CellIndex<3>,
@@ -526,6 +587,12 @@ impl<'a, F: Function + RenderHints> OctreeBuilder<'a, F> {
     ) -> bool {
         if self.cancel.is_cancelled() {
             return false;
+        }
+        if BUDGETED {
+            if self.stats.visited == self.max_cells {
+                return false;
+            }
+            self.stats.visited += 1;
         }
         let (i, r) = match self.eval_interval.eval_raw(
             eval.i_tape(&mut self.tape_storage),
@@ -538,6 +605,9 @@ impl<'a, F: Function + RenderHints> OctreeBuilder<'a, F> {
             Ok(v) => v,
             Err(ShapeTracingEvalError::MissingVar(..)) => unreachable!(),
         };
+        if BUDGETED && (i.upper() < 0.0 || i.lower() > 0.0) {
+            self.stats.interval_rejections += 1;
+        }
         self.octree[cell] = if i.upper() < 0.0 {
             Cell::Full
         } else if i.lower() > 0.0 {
@@ -558,6 +628,9 @@ impl<'a, F: Function + RenderHints> OctreeBuilder<'a, F> {
                 eval
             };
             if cell.depth == self.max_depth as usize {
+                if BUDGETED {
+                    self.stats.finest_leaves += 1;
+                }
                 self.leaf(sub_tape, cell, hermite)
             } else {
                 // Reserve new cells for the 8x children
@@ -566,7 +639,7 @@ impl<'a, F: Function + RenderHints> OctreeBuilder<'a, F> {
                 let mut hermite_child = [LeafHermiteData::default(); 8];
                 for i in Corner::<3>::iter() {
                     let cell = cell.child(index, i);
-                    if !self.recurse(
+                    if !self.recurse::<BUDGETED>(
                         sub_tape,
                         cell,
                         &mut hermite_child[i.index()],
@@ -1138,6 +1211,29 @@ mod test {
         .sqrt();
 
         b - radius * (1.0 - a / length)
+    }
+
+    #[test]
+    fn budgeted_build_preserves_mesh_at_exact_limit() {
+        let shape = tree_to_shape(sphere([0.0; 3], 0.2));
+        let settings = depth1_single_thread();
+        let expected = Octree::build(&shape, &settings).unwrap().walk_dual();
+        let (octree, stats) =
+            Octree::build_with_budget(&shape, &settings, 9).unwrap();
+        let mesh = octree.walk_dual();
+        assert_eq!(stats.visited, 9);
+        assert_eq!(stats.finest_leaves, 8);
+        assert_eq!(mesh.vertices, expected.vertices);
+        assert_eq!(mesh.triangles, expected.triangles);
+        assert!(matches!(
+            Octree::build_with_budget(&shape, &settings, 8),
+            Err(BuildInterrupted::CellBudget(BuildStats { visited: 8, .. }))
+        ));
+        settings.cancel.clone().cancel();
+        assert!(matches!(
+            Octree::build_with_budget(&shape, &settings, 9),
+            Err(BuildInterrupted::Cancelled(BuildStats { visited: 0, .. }))
+        ));
     }
 
     #[test]
