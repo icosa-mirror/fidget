@@ -189,11 +189,50 @@ fn check(mesh: &Mesh) -> (f32, f32) {
     (field_error, surface_error)
 }
 
+// Positions avoid tangencies. The rays cross the bore wall, both pads, the
+// fillet and the bridge. A missing hole changes the intersection count.
+fn ray_crossings(mesh: &Mesh) -> Vec<Vec<f64>> {
+    let mut rays = vec![
+        (2, -0.477, 0.007),
+        (2, -0.389, 0.016),
+        (2, 0.013, 0.004),
+        (2, 0.013, 0.079),
+    ];
+    for i in 0..12 {
+        rays.push((2, 0.723 + i as f64 * 0.0047, 0.014));
+        rays.push((0, -0.048 + i as f64 * 0.0083, 0.033));
+    }
+    rays.into_iter()
+        .map(|(axis, u, v)| {
+            let j = (axis + 1) % 3;
+            let k = (axis + 2) % 3;
+            let mut hits = Vec::new();
+            for f in &mesh.triangles {
+                let a = mesh.vertices[f.x].cast::<f64>();
+                let ab = mesh.vertices[f.y].cast::<f64>() - a;
+                let ac = mesh.vertices[f.z].cast::<f64>() - a;
+                let det = ab[j] * ac[k] - ab[k] * ac[j];
+                if det.abs() < 1e-14 {
+                    continue;
+                }
+                let b = ((u - a[j]) * ac[k] - (v - a[k]) * ac[j]) / det;
+                let c = (ab[j] * (v - a[k]) - ab[k] * (u - a[j])) / det;
+                if b >= 0.0 && c >= 0.0 && b + c <= 1.0 {
+                    hits.push(a[axis] + b * ab[axis] + c * ac[axis]);
+                }
+            }
+            hits.sort_by(f64::total_cmp);
+            hits.dedup_by(|a, b| (*a - *b).abs() < 1e-9);
+            hits
+        })
+        .collect()
+}
+
 fn main() {
     let (shape, values) = fixture();
     let shape = shape.bind(&values).unwrap();
     println!(
-        "depth,phase,mode,visited,planar_leaves,curved_leaves,triangles,median_ms,peak_rust_heap_bytes,max_field_residual,max_probe_distance"
+        "depth,phase,mode,visited,planar_leaves,curved_leaves,triangles,median_ms,peak_rust_heap_bytes,max_field_residual,max_probe_distance,max_ray_shift_from_depth9,rays_with_different_crossing_count"
     );
     for depth in [6, 7, 8] {
         for phase in [0.0, 0.37, 0.81] {
@@ -206,6 +245,15 @@ fn main() {
             for (axis, scale) in [1.0, 0.5, 0.25].into_iter().enumerate() {
                 cfg.world_to_model[(axis, 3)] = edge * phase * scale;
             }
+            let fine = Settings {
+                depth: 9,
+                threads: None,
+                world_to_model: cfg.world_to_model,
+                ..Default::default()
+            };
+            let reference = ray_crossings(
+                &Octree::build(&shape, &fine).unwrap().walk_dual(),
+            );
             let names = ["fixed", "planes", "error_0.008", "error_0.002"];
             let mut times = names.map(|_| Vec::new());
             // Warm up, time five builds per mode, then run geometry checks
@@ -238,9 +286,29 @@ fn main() {
                     if run == 6 {
                         times[mode].sort_by(f64::total_cmp);
                         let (residual, distance) = check(&mesh);
+                        let mut ray_shift = 0.0f64;
+                        let mut crossing_count_changes = 0;
+                        for (hits, expected) in
+                            ray_crossings(&mesh).iter().zip(&reference)
+                        {
+                            if hits.len() != expected.len() {
+                                crossing_count_changes += 1;
+                            }
+                            for (from, to) in
+                                [(hits, expected), (expected, hits)]
+                            {
+                                for a in from {
+                                    let nearest = to
+                                        .iter()
+                                        .map(|b| (a - b).abs())
+                                        .fold(f64::INFINITY, f64::min);
+                                    ray_shift = ray_shift.max(nearest);
+                                }
+                            }
+                        }
                         let name = names[mode];
                         println!(
-                            "{depth},{phase:.2},{name},{},{},{},{},{:.2},{peak},{residual:.6},{distance:.6}",
+                            "{depth},{phase:.2},{name},{},{},{},{},{:.2},{peak},{residual:.6},{distance:.6},{ray_shift:.6},{crossing_count_changes}",
                             stats.visited,
                             stats.planar_leaves,
                             stats.curved_leaves,
