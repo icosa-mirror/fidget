@@ -6,7 +6,9 @@ namespace FidgetExamples
 {
     public sealed class SamplingComparison : MonoBehaviour
     {
-        [Range(0.008f, 0.04f)] public float FeatureSpacing = 0.016f;
+        private const float MinSpacing = 0.001f;
+        private const float MaxSpacing = 0.04f;
+        [Range(MinSpacing, MaxSpacing)] public float FeatureSpacing = 0.016f;
         [Range(0.055f, 0.22f)] public float BoreDiameter = 0.12f;
         [Range(0.045f, 0.18f)] public float BridgeThickness = 0.085f;
         [Tooltip("Shift the sampling bounds by a fraction of a finest cell on each axis.")]
@@ -60,7 +62,11 @@ namespace FidgetExamples
         private void OnGUI()
         {
             GUILayout.BeginArea(new Rect(12, 8, 230, 240), GUI.skin.box);
-            FeatureSpacing = Slider("Feature spacing", FeatureSpacing, 0.008f, 0.04f);
+            GUILayout.Label($"Feature spacing  {FeatureSpacing:F4}");
+            // Equal slider distances halve or double the cell size.
+            float logSpacing = Mathf.Log(FeatureSpacing, 2);
+            float selected = GUILayout.HorizontalSlider(logSpacing, Mathf.Log(MinSpacing, 2), Mathf.Log(MaxSpacing, 2));
+            if (selected != logSpacing) FeatureSpacing = Mathf.Pow(2, selected);
             BoreDiameter = Slider("Bore diameter", BoreDiameter, 0.055f, 0.22f);
             BridgeThickness = Slider("Bridge thickness", BridgeThickness, 0.045f, 0.18f);
             GridPhase = Slider("Grid phase", GridPhase, 0, 1);
@@ -104,7 +110,7 @@ namespace FidgetExamples
                     while (_active.IsPending && !_active.TryApply()) yield return null;
                     if (_active.CellBudgetExceeded)
                     {
-                        readout.text = $"{label}\nCell budget exhausted";
+                        readout.text = $"{label} · depth {settings.SamplingDepth}\n{_active.LastVisitedCells:N0} cells\nCell budget exhausted";
                         _active.Dispose();
                     }
                     else

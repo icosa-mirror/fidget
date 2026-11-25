@@ -89,6 +89,9 @@ Open `Scenes/Sampling/RoundedBlockComparison` in the examples and enter Play.
 Try Feature Spacing 0.008 and Surface Error 0.008, then compare with Surface
 Error zero. The left model samples at fixed depth. The right uses adaptive
 sampling. Both receive the same bore diameter, bridge thickness and grid offset.
+The feature-spacing slider reaches depth 9 at 0.004, depth 10 at 0.002 and
+depth 11 at 0.001. Each side has a two-million-cell budget. If a build reaches
+that limit, its readout reports the requested depth and the last complete mesh stays visible.
 `MeshStream.LastCurvedLeaves` counts accepted curved cells, and
 `LastWorkerMilliseconds` includes native sampling, normals and buffer writes.
 
