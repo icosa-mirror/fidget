@@ -5,6 +5,7 @@ namespace Icosa.Fidget
     /// <summary>A shape component: define its expression once and update ordinary typed properties.</summary>
     public abstract class FidgetMesh<T> : FidgetMesh where T : FidgetMesh<T>
     {
+        [Header("Mesh Setup")]
         [Tooltip("Local-space region to mesh. Configure before enabling the component, or call Rebuild.")]
         public Bounds Bounds = new Bounds(Vector3.zero, Vector3.one * 2);
         public MeshNormals Normals = MeshNormals.Surface;

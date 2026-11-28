@@ -8,15 +8,22 @@ namespace Icosa.Fidget
     [DisallowMultipleComponent]
     public class FidgetMesh : MonoBehaviour
     {
+        [Header("Sampling Resolution")]
+        [Tooltip("Octree depth when Feature Spacing is zero. Higher values sample more finely.")]
         [Range(1, MeshSettings.MaxDepth)] public int Detail = 6;
-        [Tooltip("Longest finest-cell edge in local units. Zero uses Detail.")]
+        [Tooltip("Sets the finest cell size in local units and selects Detail automatically. Zero uses the Detail slider.")]
         [Min(0)] public float FeatureSpacing;
-        [Tooltip("Maximum cells per build. Zero uses the default budget for high detail and feature spacing.")]
-        [Min(0)] public int CellBudget;
-        [Tooltip("Finish eligible flat regions early. Curves and unresolved cells continue to the requested detail.")]
+
+        [Header("Adaptive Sampling")]
+        [Tooltip("With Surface Error at zero, enable this to stop early on eligible flat patches.")]
         public bool AdaptivePlanes;
-        [Tooltip("Experimental local-space error target for early curved patches. Zero disables curved sampling.")]
+        [Tooltip("A positive local-space tolerance lets eligible flat and curved patches stop early. Zero uses the Adaptive Planes toggle.")]
         [Min(0)] public float SurfaceError;
+
+        [Header("Build Limit")]
+        [Tooltip("Maximum cells visited per build. Zero uses an automatic limit for spacing-based, adaptive, or depth 9–11 builds.")]
+        [Min(0)] public int CellBudget;
+
         public ParameterValues Parameters { get; private set; }
         public MeshStream Stream { get; private set; }
         private CompiledShape _shape;

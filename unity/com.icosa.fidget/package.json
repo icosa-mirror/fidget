@@ -1,6 +1,6 @@
 {
   "name": "com.icosa.fidget",
-  "version": "0.10.0",
+  "version": "0.10.1",
   "displayName": "Fidget Native Meshing",
   "description": "Parameterized implicit shapes and worker-job meshing into Unity MeshData.",
   "unity": "6000.3",
