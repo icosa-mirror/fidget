@@ -10,7 +10,6 @@ namespace FidgetExamples.Editor
         internal static void Configure(FidgetMesh mesh, Bounds bounds, MeshNormals normals, int detail)
         {
             mesh.Detail = detail;
-            mesh.Continuous = false;
             var serialized = new SerializedObject(mesh);
             serialized.FindProperty("Bounds").boundsValue = bounds;
             serialized.FindProperty("Normals").enumValueIndex = (int)normals;

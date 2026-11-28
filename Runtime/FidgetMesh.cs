@@ -8,8 +8,6 @@ namespace Icosa.Fidget
     [DisallowMultipleComponent]
     public class FidgetMesh : MonoBehaviour
     {
-        [Tooltip("When disabled, typed property changes trigger updates automatically. For explicit parameter values, call RequestUpdate.")]
-        public bool Continuous = true;
         [Range(1, MeshSettings.MaxDepth)] public int Detail = 6;
         [Tooltip("Longest finest-cell edge in local units. Zero uses Detail.")]
         [Min(0)] public float FeatureSpacing;
@@ -79,7 +77,6 @@ namespace Icosa.Fidget
         protected virtual void LateUpdate()
         {
             if (Stream == null) return;
-            if (Parameters.CaptureBindings()) _requested = true;
             _settings.Depth = Detail;
             _settings.FeatureSpacing = FeatureSpacing;
             _settings.CellBudget = CellBudget;
@@ -92,7 +89,9 @@ namespace Icosa.Fidget
             Stream.TryApply();
             if (wasPending && !Stream.IsPending && Stream.CellBudgetExceeded)
                 Debug.LogWarning($"Fidget stopped after {Stream.LastVisitedCells} cells on {name}. Increase Cell Budget or reduce the requested detail.", this);
-            if (!_requested && (!Continuous || (Stream.CellBudgetExceeded && !Stream.IsPending && Stream.HasScheduledValues(Parameters)))) return;
+            if (Stream.IsPending) return;
+            Parameters.CaptureBindings();
+            if (!_requested && Stream.HasScheduledValues(Parameters)) return;
             if (Stream.TrySchedule(Parameters, depth, _settings, false))
             {
                 _scheduledDepth = depth;
