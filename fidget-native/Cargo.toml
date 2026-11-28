@@ -1,0 +1,17 @@
+[package]
+name = "fidget-native"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish = false
+description = "Minimal C ABI for validating Fidget meshing on Unity target platforms"
+
+[lib]
+crate-type = ["cdylib", "staticlib"]
+
+[dependencies]
+fidget-core.workspace = true
+fidget-mesh.workspace = true
+nalgebra.workspace = true
+workspace-hack.workspace = true

@@ -1,0 +1,15 @@
+{
+  "name": "com.icosa.fidget",
+  "version": "0.10.1",
+  "displayName": "Fidget Native Meshing",
+  "description": "Parameterized implicit shapes and worker-job meshing into Unity MeshData.",
+  "unity": "6000.3",
+  "license": "MPL-2.0",
+  "samples": [
+    {
+      "displayName": "Examples",
+      "description": "Animated Booleans, interactive parameters, shared shapes, and a unified builder for profiles, solids, joins, repetition and deformations.",
+      "path": "Samples~/Examples"
+    }
+  ]
+}

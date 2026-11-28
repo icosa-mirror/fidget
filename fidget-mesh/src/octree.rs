@@ -9,6 +9,11 @@ use super::{
     qef::QuadraticErrorSolver,
     types::{Axis, CellMask, Corner, Edge},
 };
+use crate::{
+    adaptive::{GradientWorkspace, Patch},
+    cell::CellBounds,
+};
+use fidget_core::vm::VmFunction;
 use fidget_core::{
     eval::Function,
     render::{RenderHandle, RenderHints, ThreadPool},
@@ -19,6 +24,41 @@ use fidget_core::{
     types::Grad,
 };
 use std::collections::VecDeque;
+
+type PatchTest<F> = fn(
+    &mut GradientWorkspace,
+    &F,
+    CellBounds<3>,
+    Option<&nalgebra::Matrix4<f32>>,
+    &ShapeVars<f32>,
+    f32,
+) -> Option<Patch>;
+
+/// Sampling work performed by a budgeted octree build.
+#[derive(Debug, Default, Copy, Clone)]
+pub struct BuildStats {
+    /// Cells that received an interval evaluation.
+    pub visited: u32,
+    /// Cells classified without sampling their corners.
+    pub interval_rejections: u32,
+    /// Cells sampled at the requested finest depth.
+    pub finest_leaves: u32,
+    /// Planar surface cells sampled above the finest depth.
+    pub planar_leaves: u32,
+    /// Curved sheets accepted above the finest depth.
+    pub curved_leaves: u32,
+    /// Parent merges that passed a surface check over curved descendants.
+    pub curved_merges: u32,
+}
+
+/// A build stopped before it had a complete tree.
+#[derive(Debug)]
+pub enum BuildInterrupted {
+    /// The caller signalled cancellation.
+    Cancelled(BuildStats),
+    /// Visiting the next cell would exceed the work limit.
+    CellBudget(BuildStats),
+}
 
 /// Octree storing occupancy and vertex positions for Manifold Dual Contouring
 #[derive(Debug)]
@@ -55,15 +95,130 @@ impl Octree {
     ) -> Option<Self> {
         let mut out = Self::build_inner(b, settings)?;
 
-        // Apply the transform from [-1, +1] back to model space
+        out.transform_vertices(settings);
+        Some(out)
+    }
+
+    /// Builds on the calling thread, visiting at most `max_cells` cells.
+    /// Uses the depth, transform and cancellation token from `settings`.
+    /// Interrupted builds discard partial geometry and return their counters.
+    pub fn build_with_budget<F: Function + RenderHints + Clone>(
+        b: &BoundShape<F, f32>,
+        settings: &Settings,
+        max_cells: u32,
+    ) -> Result<(Self, BuildStats), BuildInterrupted> {
+        Self::build_budgeted_inner(b, settings, max_cells, None, None)
+    }
+
+    /// Experimental single-threaded VM sampler. A region can terminate early
+    /// when its simplified tape describes a plane. Other regions use the
+    /// same interval pruning and finest-depth search as the fixed-depth path.
+    pub fn build_adaptive_planes(
+        b: &BoundShape<fidget_core::vm::VmFunction, f32>,
+        settings: &Settings,
+        max_cells: u32,
+    ) -> Result<(Self, BuildStats), BuildInterrupted> {
+        Self::build_vm(b, settings, max_cells, None)
+    }
+
+    /// Experimental VM sampler with a shape-local curved-patch error target.
+    /// Uses the fixed-depth search wherever a single sheet cannot be established.
+    /// # Panics
+    /// If the tolerance is non-finite or non-positive.
+    pub fn build_with_surface_error(
+        b: &BoundShape<VmFunction, f32>,
+        settings: &Settings,
+        max_cells: u32,
+        tolerance: f32,
+    ) -> Result<(Self, BuildStats), BuildInterrupted> {
+        assert!(tolerance.is_finite() && tolerance > 0.0);
+        Self::build_vm(b, settings, max_cells, Some(tolerance))
+    }
+
+    fn build_vm(
+        b: &BoundShape<VmFunction, f32>,
+        settings: &Settings,
+        max_cells: u32,
+        tolerance: Option<f32>,
+    ) -> Result<(Self, BuildStats), BuildInterrupted> {
+        use fidget_core::compiler::RegOp;
+        fn plane(f: &VmFunction) -> bool {
+            // A unary affine chain can include one absolute value (e.g.
+            // abs(x) - width). With axis-aligned bounds, opposite signs
+            // on the two end faces then guarantee one planar crossing.
+            let mut folded = false;
+            f.data().iter_asm().all(|op| match op {
+                RegOp::AbsReg(..) if !folded => {
+                    folded = true;
+                    true
+                }
+                RegOp::Input(..)
+                | RegOp::Output(..)
+                | RegOp::CopyReg(..)
+                | RegOp::NegReg(..) => true,
+                RegOp::AddRegImm(_, _, k)
+                | RegOp::SubImmReg(_, _, k)
+                | RegOp::SubRegImm(_, _, k) => k.is_finite(),
+                RegOp::MulRegImm(_, _, k) | RegOp::DivRegImm(_, _, k) => {
+                    k.is_finite() && k != 0.0
+                }
+                _ => false,
+            })
+        }
+        let m = &settings.world_to_model;
+        let axis_aligned = (0..3)
+            .all(|i| (0..3).all(|j| i == j || m[(i, j)] == 0.0))
+            && m[(3, 0)] == 0.0
+            && m[(3, 1)] == 0.0
+            && m[(3, 2)] == 0.0
+            && m[(3, 3)] == 1.0;
+        Self::build_budgeted_inner(
+            b,
+            settings,
+            max_cells,
+            axis_aligned.then_some(plane),
+            axis_aligned.then_some((
+                tolerance.unwrap_or(0.0),
+                GradientWorkspace::classify as PatchTest<VmFunction>,
+            )),
+        )
+    }
+
+    fn build_budgeted_inner<F: Function + RenderHints + Clone>(
+        b: &BoundShape<F, f32>,
+        settings: &Settings,
+        max_cells: u32,
+        plane: Option<fn(&F) -> bool>,
+        surface: Option<(f32, PatchTest<F>)>,
+    ) -> Result<(Self, BuildStats), BuildInterrupted> {
+        let mut eval = RenderHandle::new(b.shape().clone());
+        let mut builder = OctreeBuilder::new(settings, b.vars());
+        builder.max_cells = max_cells;
+        builder.plane = plane;
+        builder.surface = surface;
+        if !builder.recurse::<true>(
+            &mut eval,
+            CellIndex::default(),
+            &mut LeafHermiteData::default(),
+        ) {
+            return Err(if builder.cancel.is_cancelled() {
+                BuildInterrupted::Cancelled(builder.stats)
+            } else {
+                BuildInterrupted::CellBudget(builder.stats)
+            });
+        }
+        builder.octree.transform_vertices(settings);
+        Ok((builder.octree, builder.stats))
+    }
+
+    fn transform_vertices(&mut self, settings: &Settings) {
         if settings.world_to_model != nalgebra::Matrix4::identity() {
-            for v in &mut out.verts {
+            for v in &mut self.verts {
                 let p: nalgebra::Point3<f32> = v.pos.into();
                 let q = settings.world_to_model.transform_point(&p);
                 v.pos = q.coords;
             }
         }
-        Some(out)
     }
 
     /// Performs the inner work of evaluation
@@ -82,7 +237,11 @@ impl Octree {
             let mut eval = RenderHandle::new(shape.clone());
             let mut out = OctreeBuilder::new(settings, vars);
             let mut hermite = LeafHermiteData::default();
-            if out.recurse(&mut eval, CellIndex::default(), &mut hermite) {
+            if out.recurse::<false>(
+                &mut eval,
+                CellIndex::default(),
+                &mut hermite,
+            ) {
                 Some(out.octree)
             } else {
                 None
@@ -142,7 +301,11 @@ impl Octree {
                             index: None,
                             ..*cell
                         };
-                        if !builder.recurse(eval, local_cell, &mut hermite) {
+                        if !builder.recurse::<false>(
+                            eval,
+                            local_cell,
+                            &mut hermite,
+                        ) {
                             return None;
                         }
                         let octree = std::mem::replace(
@@ -259,8 +422,8 @@ impl Octree {
         // Check out the children
         let mut full_count = 0;
         let mut empty_count = 0;
-        for i in 0..8 {
-            match self.cells[index][i] {
+        for child in &self.cells[index] {
+            match child {
                 Cell::Invalid => {
                     panic!("found invalid cell during meshing")
                 }
@@ -299,13 +462,17 @@ impl Octree {
         // single-threaded evaluation, it's only during merging octrees from
         // multiple threads that we'd have cells midway through the array.
         if !matches!(out, Cell::Branch { .. }) {
-            if index == self.cells.len() - 1 {
-                self.cells.resize(index, [Cell::Invalid; 8]);
-            } else {
-                self.cells[index] = [Cell::Invalid; 8];
-            }
+            self.release_children(index);
         }
         out
+    }
+
+    fn release_children(&mut self, index: usize) {
+        if index == self.cells.len() - 1 {
+            self.cells.pop();
+        } else {
+            self.cells[index] = [Cell::Invalid; 8];
+        }
     }
 
     /// Try to collapse the given cell
@@ -469,6 +636,11 @@ pub(crate) struct OctreeBuilder<'a, F: Function + RenderHints> {
     cancel: fidget_core::render::CancelToken,
     world_to_model: Option<&'a nalgebra::Matrix4<f32>>,
     max_depth: u8,
+    max_cells: u32,
+    stats: BuildStats,
+    plane: Option<fn(&F) -> bool>,
+    surface: Option<(f32, PatchTest<F>)>,
+    gradients: GradientWorkspace,
     vars: &'a ShapeVars<f32>,
 
     eval_float_slice: ShapeBulkEval<F::FloatSliceEval>,
@@ -497,6 +669,11 @@ impl<'a, F: Function + RenderHints> OctreeBuilder<'a, F> {
 
             cancel: settings.cancel.clone(),
             max_depth: settings.depth,
+            max_cells: 0,
+            stats: BuildStats::default(),
+            plane: None,
+            surface: None,
+            gradients: GradientWorkspace::default(),
             world_to_model,
             vars,
 
@@ -518,7 +695,7 @@ impl<'a, F: Function + RenderHints> OctreeBuilder<'a, F> {
     /// Returns `true` if recursion completed normally, or `false` if it was
     /// cancelled.
     #[must_use]
-    fn recurse(
+    fn recurse<const BUDGETED: bool>(
         &mut self,
         eval: &mut RenderHandle<F>,
         cell: CellIndex<3>,
@@ -526,6 +703,12 @@ impl<'a, F: Function + RenderHints> OctreeBuilder<'a, F> {
     ) -> bool {
         if self.cancel.is_cancelled() {
             return false;
+        }
+        if BUDGETED {
+            if self.stats.visited == self.max_cells {
+                return false;
+            }
+            self.stats.visited += 1;
         }
         let (i, r) = match self.eval_interval.eval_raw(
             eval.i_tape(&mut self.tape_storage),
@@ -538,6 +721,9 @@ impl<'a, F: Function + RenderHints> OctreeBuilder<'a, F> {
             Ok(v) => v,
             Err(ShapeTracingEvalError::MissingVar(..)) => unreachable!(),
         };
+        if BUDGETED && (i.upper() < 0.0 || i.lower() > 0.0) {
+            self.stats.interval_rejections += 1;
+        }
         self.octree[cell] = if i.upper() < 0.0 {
             Cell::Full
         } else if i.lower() > 0.0 {
@@ -557,16 +743,54 @@ impl<'a, F: Function + RenderHints> OctreeBuilder<'a, F> {
             } else {
                 eval
             };
+            // Bound the scale difference to preserve the accuracy of the
+            // leaf's quantized edge intersections. Only a single in-cell
+            // vertex may meet finer neighbors in the dual traversal.
+            let patch = if BUDGETED
+                && cell.depth >= 2
+                && cell.depth < usize::from(self.max_depth)
+                && cell.depth + 4 >= usize::from(self.max_depth)
+                && i.lower().is_finite()
+                && i.upper().is_finite()
+            {
+                self.patch(sub_tape.function(), cell)
+            } else {
+                None
+            };
+            if let Some(patch) = &patch {
+                let start = self.octree.verts.len();
+                let mut candidate = LeafHermiteData::default();
+                if let Cell::Leaf(leaf) =
+                    self.leaf(sub_tape, cell, &mut candidate)
+                    // These six masks are the two end faces of each axis.
+                    && matches!(leaf.mask.index(), 0x0f | 0xf0 | 0x33 | 0xcc | 0x55 | 0xaa)
+                    && cell.bounds.contains(self.octree.verts[leaf.index])
+                    && self.check_patch(patch, cell, leaf, sub_tape)
+                {
+                    self.octree[cell] = Cell::Leaf(leaf);
+                    *hermite = candidate;
+                    match patch {
+                        Patch::Plane => self.stats.planar_leaves += 1,
+                        Patch::Sheet { .. } => self.stats.curved_leaves += 1,
+                    }
+                    return true;
+                }
+                self.octree.verts.truncate(start);
+            }
             if cell.depth == self.max_depth as usize {
+                if BUDGETED {
+                    self.stats.finest_leaves += 1;
+                }
                 self.leaf(sub_tape, cell, hermite)
             } else {
                 // Reserve new cells for the 8x children
                 let index = self.octree.cells.len();
                 self.octree.cells.push([Cell::Invalid; 8]);
                 let mut hermite_child = [LeafHermiteData::default(); 8];
+                let curved_before = self.stats.curved_leaves;
                 for i in Corner::<3>::iter() {
                     let cell = cell.child(index, i);
-                    if !self.recurse(
+                    if !self.recurse::<BUDGETED>(
                         sub_tape,
                         cell,
                         &mut hermite_child[i.index()],
@@ -576,10 +800,182 @@ impl<'a, F: Function + RenderHints> OctreeBuilder<'a, F> {
                 }
 
                 // Figure out whether the children can be collapsed
-                self.octree.check_done(cell, index, hermite_child, hermite)
+                if BUDGETED && self.stats.curved_leaves != curved_before {
+                    self.merge_curved_children(
+                        sub_tape,
+                        cell,
+                        index,
+                        hermite_child,
+                        hermite,
+                        patch,
+                    )
+                } else {
+                    self.octree.check_done(cell, index, hermite_child, hermite)
+                }
             }
         };
         true
+    }
+
+    fn merge_curved_children(
+        &mut self,
+        eval: &mut RenderHandle<F>,
+        cell: CellIndex<3>,
+        index: usize,
+        children: [LeafHermiteData; 8],
+        hermite: &mut LeafHermiteData,
+        patch: Option<Patch>,
+    ) -> Cell<3> {
+        let branch = Cell::Branch { index };
+        let Some(Patch::Sheet {
+            axis,
+            max_field_residual,
+        }) = patch
+        else {
+            return branch;
+        };
+        // Reuse the topology, relative QEF error and vertex bounds checks.
+        // The children establish connectivity even for a side-exiting sheet.
+        let Some(leaf) =
+            self.octree.try_collapse(cell, index, children, hermite)
+        else {
+            return branch;
+        };
+        if !self.check_sheet_vertices(
+            eval,
+            leaf,
+            max_field_residual,
+            Some((cell, axis)),
+        ) {
+            self.octree.verts.truncate(leaf.index);
+            return branch;
+        }
+        self.stats.curved_merges += 1;
+        self.octree.release_children(index);
+        Cell::Leaf(leaf)
+    }
+
+    fn patch(&mut self, function: &F, cell: CellIndex<3>) -> Option<Patch> {
+        if self.plane.is_some_and(|test| test(function)) {
+            return Some(Patch::Plane);
+        }
+        let (tolerance, test) = self.surface?;
+        test(
+            &mut self.gradients,
+            function,
+            cell.bounds,
+            self.world_to_model,
+            self.vars,
+            tolerance,
+        )
+    }
+
+    fn check_patch(
+        &mut self,
+        patch: &Patch,
+        cell: CellIndex<3>,
+        leaf: Leaf<3>,
+        eval: &mut RenderHandle<F>,
+    ) -> bool {
+        let Patch::Sheet {
+            axis,
+            max_field_residual,
+        } = *patch
+        else {
+            return true;
+        };
+        // The entire end faces must bracket zero. Combined with the strict
+        // derivative sign, this gives one crossing on every axial line.
+        let mut limits = [false; 2];
+        for (side, sign) in limits.iter_mut().enumerate() {
+            let mut b = cell.bounds.bounds;
+            b[axis] = if side == 0 {
+                b[axis].lower()
+            } else {
+                b[axis].upper()
+            }
+            .into();
+            let Ok((i, _)) = self.eval_interval.eval_raw(
+                eval.i_tape(&mut self.tape_storage),
+                b[0],
+                b[1],
+                b[2],
+                self.world_to_model,
+                self.vars,
+            ) else {
+                return false;
+            };
+            if i.lower() > 0.0 {
+                *sign = true;
+            } else if i.upper() >= 0.0 || i.has_nan() {
+                return false;
+            }
+        }
+        if limits[0] == limits[1] {
+            return false;
+        }
+        self.check_sheet_vertices(eval, leaf, max_field_residual, None)
+    }
+
+    fn check_sheet_vertices(
+        &mut self,
+        eval: &mut RenderHandle<F>,
+        leaf: Leaf<3>,
+        max_field_residual: f32,
+        bracket: Option<(CellIndex<3>, usize)>,
+    ) -> bool {
+        // One newly appended dual vertex, up to 12 edge crossings and two
+        // optional samples to bracket the merged vertex's closest axial root.
+        let verts = &self.octree.verts[leaf.index..];
+        let mut coords = [[0.0; 15]; 3];
+        let n = verts.len();
+        for (axis, values) in coords.iter_mut().enumerate() {
+            for (slot, v) in values.iter_mut().zip(verts) {
+                *slot = v.pos[axis];
+            }
+        }
+        let count = if let Some((cell, axis)) = bracket {
+            // The full end faces need not straddle zero after subdivision.
+            // Check for a crossing inside the parent and within one quarter
+            // of the shape-local tolerance along the certified monotone axis.
+            let (tolerance, _) = self.surface.unwrap();
+            let scale =
+                self.world_to_model.map_or(1.0, |m| m[(axis, axis)].abs());
+            if scale == 0.0 {
+                return false;
+            }
+            let step = (tolerance * 0.25) / scale;
+            for values in &mut coords {
+                values[n] = values[0];
+                values[n + 1] = values[0];
+            }
+            let bounds = cell.bounds.bounds[axis];
+            let v = &mut coords[axis];
+            v[n] = (v[0] - step).max(bounds.lower());
+            v[n + 1] = (v[0] + step).min(bounds.upper());
+            n + 2
+        } else {
+            n
+        };
+        self.eval_float_slice
+            .eval_raw(
+                eval.f_tape(&mut self.tape_storage),
+                &coords[0][..count],
+                &coords[1][..count],
+                &coords[2][..count],
+                self.world_to_model,
+                ShapeBulkEval::<F::FloatSliceEval>::var_value(self.vars),
+            )
+            .is_ok_and(|values| {
+                values[..n].iter().all(|v| v.abs() <= max_field_residual)
+                    && match &values[n..] {
+                        [] => true,
+                        [a, b] => {
+                            (*a <= 0.0 && *b >= 0.0) || (*b <= 0.0 && *a >= 0.0)
+                        }
+                        _ => unreachable!(),
+                    }
+            })
     }
 
     /// Evaluates the given leaf
@@ -1138,6 +1534,193 @@ mod test {
         .sqrt();
 
         b - radius * (1.0 - a / length)
+    }
+
+    #[test]
+    fn curved_sphere_sheets_preserve_topology_and_field_scaling() {
+        let center = nalgebra::Vector3::new(0.023, -0.012, 0.039);
+        let radius = 0.41;
+        let field = sphere(center.into(), radius);
+        let settings = Settings {
+            depth: 8,
+            threads: None,
+            ..Default::default()
+        };
+        let mut first = None;
+        for scale in [1.0f32, 8.0] {
+            let shape = tree_to_shape(field.clone() * scale);
+            let (tree, stats) = Octree::build_with_surface_error(
+                &shape, &settings, 500_000, 0.006,
+            )
+            .unwrap();
+            assert!(stats.curved_leaves > 0);
+            assert!(stats.curved_merges > 0);
+            let mesh = tree.walk_dual();
+            let mut edges = BTreeMap::new();
+            for f in &mesh.triangles {
+                let [a, b, c] = [f.x, f.y, f.z].map(|i| mesh.vertices[i]);
+                for point in [a, (a + b + c) / 3.0] {
+                    assert!(((point - center).norm() - radius).abs() <= 0.006);
+                }
+                for (i, j) in [(f.x, f.y), (f.y, f.z), (f.z, f.x)] {
+                    *edges.entry((i.min(j), i.max(j))).or_insert(0) += 1;
+                }
+            }
+            assert!(edges.values().all(|n| *n == 2));
+            assert_eq!(
+                mesh.vertices.len() + mesh.triangles.len(),
+                edges.len() + 2
+            );
+            let counts =
+                (stats.visited, stats.curved_leaves, stats.curved_merges);
+            if let Some(expected) = first {
+                assert_eq!(counts, expected);
+            }
+            first = Some(counts);
+        }
+    }
+
+    #[test]
+    fn adaptive_planes_preserve_thin_bridge_and_both_faces_of_thin_slab() {
+        fn components(mesh: &Mesh) -> usize {
+            let mut links = vec![Vec::new(); mesh.vertices.len()];
+            for f in &mesh.triangles {
+                for (a, b) in [(f.x, f.y), (f.y, f.z), (f.z, f.x)] {
+                    links[a].push(b);
+                    links[b].push(a);
+                }
+            }
+            let mut seen = vec![false; links.len()];
+            let mut count = 0;
+            for start in 0..links.len() {
+                if seen[start] {
+                    continue;
+                }
+                let mut stack = vec![start];
+                seen[start] = true;
+                while let Some(i) = stack.pop() {
+                    for &next in &links[i] {
+                        if !seen[next] {
+                            seen[next] = true;
+                            stack.push(next);
+                        }
+                    }
+                }
+                count += 1;
+            }
+            count
+        }
+        let ends =
+            sphere([-0.5, 0.0, 0.0], 0.16).min(sphere([0.5, 0.0, 0.0], 0.16));
+        let bridge = (Tree::x().abs() - 0.5)
+            .max((Tree::y() - 0.017).abs() - 0.034)
+            .max((Tree::z() + 0.013).abs() - 0.034);
+        let settings = Settings {
+            depth: 7,
+            threads: None,
+            ..Default::default()
+        };
+        for (field, expected) in [(ends.clone(), 2), (ends.min(bridge), 1)] {
+            let shape = tree_to_shape(field);
+            let (tree, stats) =
+                Octree::build_adaptive_planes(&shape, &settings, 200_000)
+                    .unwrap();
+            let mesh = tree.walk_dual();
+            assert_eq!(components(&mesh), expected);
+            if expected == 1 {
+                assert!(stats.planar_leaves > 0);
+                for (axis, target) in
+                    [(1, -0.017), (1, 0.051), (2, -0.047), (2, 0.021)]
+                {
+                    assert!(
+                        mesh.vertices.iter().any(|p| p.x.abs() < 0.2
+                            && (p[axis] - target).abs() < 0.001)
+                    );
+                }
+            } else {
+                assert_eq!(stats.planar_leaves, 0);
+                let fixed =
+                    Octree::build(&shape, &settings).unwrap().walk_dual();
+                assert_eq!(mesh.triangles, fixed.triangles);
+                assert_eq!(mesh.vertices, fixed.vertices);
+            }
+        }
+    }
+
+    #[test]
+    fn adaptive_planes_preserve_drilled_block() {
+        for offset in [0.0f32, 0.007, 0.019] {
+            let x0 = 0.13 + offset;
+            let y0 = -0.11 + offset;
+            let block = cube(
+                [-0.63 + offset, 0.71 + offset],
+                [-0.6, 0.58],
+                [-0.27, 0.29],
+            );
+            let bore = ((Tree::x() - x0).square() + (Tree::y() - y0).square())
+                .sqrt()
+                - 0.09;
+            let shape = tree_to_shape(block.max(-bore));
+            let settings = Settings {
+                depth: 6,
+                threads: None,
+                ..Default::default()
+            };
+            let (fixed, baseline) =
+                Octree::build_with_budget(&shape, &settings, 200_000).unwrap();
+            let (adaptive, work) =
+                Octree::build_adaptive_planes(&shape, &settings, 200_000)
+                    .unwrap();
+            assert!(work.planar_leaves > 0 && work.visited < baseline.visited);
+            for mesh in [fixed.walk_dual(), adaptive.walk_dual()] {
+                let mut edges = BTreeMap::new();
+                for f in &mesh.triangles {
+                    for (a, b) in [(f.x, f.y), (f.y, f.z), (f.z, f.x)] {
+                        assert_ne!(a, b);
+                        *edges.entry((a.min(b), a.max(b))).or_insert(0) += 1;
+                    }
+                }
+                // A closed drilled block has Euler characteristic zero.
+                assert!(edges.values().all(|n| *n == 2));
+                assert_eq!(
+                    mesh.vertices.len() + mesh.triangles.len(),
+                    edges.len()
+                );
+                let mut wall_vertices = 0;
+                for p in &mesh.vertices {
+                    let r = (p.x - x0).hypot(p.y - y0);
+                    assert!(r > 0.08);
+                    if p.z.abs() < 0.20 && r < 0.2 {
+                        assert!((r - 0.09).abs() < 0.01);
+                        wall_vertices += 1;
+                    }
+                }
+                assert!(wall_vertices > 0);
+            }
+        }
+    }
+
+    #[test]
+    fn budgeted_build_preserves_mesh_at_exact_limit() {
+        let shape = tree_to_shape(sphere([0.0; 3], 0.2));
+        let settings = depth1_single_thread();
+        let expected = Octree::build(&shape, &settings).unwrap().walk_dual();
+        let (octree, stats) =
+            Octree::build_with_budget(&shape, &settings, 9).unwrap();
+        let mesh = octree.walk_dual();
+        assert_eq!(stats.visited, 9);
+        assert_eq!(stats.finest_leaves, 8);
+        assert_eq!(mesh.vertices, expected.vertices);
+        assert_eq!(mesh.triangles, expected.triangles);
+        assert!(matches!(
+            Octree::build_with_budget(&shape, &settings, 8),
+            Err(BuildInterrupted::CellBudget(BuildStats { visited: 8, .. }))
+        ));
+        settings.cancel.clone().cancel();
+        assert!(matches!(
+            Octree::build_with_budget(&shape, &settings, 9),
+            Err(BuildInterrupted::Cancelled(BuildStats { visited: 0, .. }))
+        ));
     }
 
     #[test]

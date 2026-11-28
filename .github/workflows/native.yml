@@ -1,0 +1,138 @@
+name: Native meshing libraries
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, feature/unity-native-platform-builds]
+    paths: &native_paths
+      - 'fidget-native/**'
+      - 'unity/**'
+      - 'examples/unity/Assets/FidgetExamples/**'
+      - 'examples/unity/Assets/FidgetExamples.meta'
+      - 'fidget-core/**'
+      - 'fidget-mesh/**'
+      - 'workspace-hack/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - '.cargo/**'
+      - '.github/workflows/native.yml'
+  pull_request:
+    branches: [main]
+    paths: *native_paths
+
+# Push and PR events for the same source head should not compete for scarce
+# macOS runners. Keep both checks, running them sequentially.
+concurrency:
+  group: native-${{ github.event.pull_request.head.sha || github.sha }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  RUSTUP_TOOLCHAIN: 1.95.0
+  CARGO_TERM_COLOR: never
+
+jobs:
+  native:
+    name: ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-pc-windows-msvc
+            os: windows-2022
+            smoke: true
+          # Cross-compile on Intel, like iOS. Validate this binary on an
+          # Apple Silicon host before UPM publication (see unity/README.md).
+          - target: aarch64-apple-darwin
+            os: macos-15-intel
+            smoke: false
+          - target: x86_64-apple-darwin
+            os: macos-15-intel
+            smoke: true
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-22.04
+            smoke: true
+          - target: aarch64-apple-ios
+            os: macos-15-intel
+            smoke: false
+          - target: aarch64-apple-ios-sim
+            os: macos-15-intel
+            smoke: false
+          - target: aarch64-linux-android
+            os: ubuntu-22.04
+            smoke: false
+          - target: x86_64-linux-android
+            os: ubuntu-22.04
+            smoke: false
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install Rust toolchain and target
+        env:
+          NATIVE_TARGET: ${{ matrix.target }}
+        run: rustup toolchain install "$RUSTUP_TOOLCHAIN" --profile minimal --component rustfmt,clippy --target "$NATIVE_TARGET"
+      - uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target/native-build
+          key: native-${{ runner.os }}-${{ runner.arch }}-${{ matrix.target }}-rust-1.95.0-${{ hashFiles('Cargo.lock', 'fidget-native/build.py') }}
+      - name: Install Android NDK r28b
+        if: contains(matrix.target, 'android')
+        run: |
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" 'ndk;28.1.13356709'
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/28.1.13356709" >> "$GITHUB_ENV"
+      - name: Check Rust wrapper formatting and lint
+        if: matrix.target == 'x86_64-pc-windows-msvc'
+        run: |
+          cargo fmt -p fidget-native -- --check
+          cargo clippy --locked -p fidget-native --no-deps --target-dir target/native-build -- -D warnings
+          cargo test --locked -p fidget-native --lib --target-dir target/native-build
+      - name: Build, verify and package
+        env:
+          NATIVE_TARGET: ${{ matrix.target }}
+          SMOKE_FLAG: ${{ matrix.smoke && '--smoke' || '' }}
+        run: python fidget-native/build.py --target "$NATIVE_TARGET" $SMOKE_FLAG
+      - uses: actions/upload-artifact@v4
+        with:
+          name: fidget-native-${{ matrix.target }}
+          path: target/native-artifacts/${{ matrix.target }}/
+          if-no-files-found: error
+          retention-days: 14
+
+  unity-package:
+    name: Assemble Unity packages
+    needs: native
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: fidget-native-*
+          path: target/ci-artifacts
+      - name: Assemble device package
+        run: |
+          python3 unity/package_unity.py --artifacts target/ci-artifacts \
+            --output target/unity-device/package --targets \
+            x86_64-pc-windows-msvc aarch64-apple-darwin x86_64-apple-darwin \
+            x86_64-unknown-linux-gnu aarch64-linux-android x86_64-linux-android aarch64-apple-ios
+          tar -czf target/fidget-unity-device.tgz -C target/unity-device package
+      - name: Assemble simulator package
+        run: |
+          python3 unity/package_unity.py --artifacts target/ci-artifacts \
+            --output target/unity-simulator/package --targets \
+            aarch64-apple-darwin x86_64-apple-darwin aarch64-apple-ios-sim
+          tar -czf target/fidget-unity-simulator.tgz -C target/unity-simulator package
+      - uses: actions/upload-artifact@v4
+        with:
+          name: fidget-unity-packages
+          path: target/fidget-unity-*.tgz
+          if-no-files-found: error
+          retention-days: 14

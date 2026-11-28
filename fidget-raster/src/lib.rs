@@ -4,6 +4,9 @@
 //! function, e.g. [`pixel::RenderConfig::run`] and
 //! [`voxel::RenderConfig::run`].
 #![warn(missing_docs)]
+// zerocopy derives generate field projection identifiers prefixed with ẕ.
+#![cfg_attr(doc, allow(uncommon_codepoints))]
+
 use fidget_core::{
     eval::Function,
     render::{ImageSize, RenderHandle, ThreadPool, TileSizes},
