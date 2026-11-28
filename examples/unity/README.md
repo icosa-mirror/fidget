@@ -58,9 +58,13 @@ assets and scene tools. `unity/package_unity.py` copies it into the published
 package's `Samples~/Examples`. Import **Examples** from Package Manager in any
 other Unity project. Runtime code lives in `unity/com.icosa.fidget`.
 
-The manifest pins a published UPM commit. The default distribution includes iOS
-device libraries; use `upm-simulator` for ARM64 simulator builds. Do not link both
-ARM64 archives together.
+The manifest and lockfile pin the same published UPM commit. CI compares that
+package's recorded source commit with the current package build inputs. After
+changing those inputs, use the native workflow's build from the feature branch,
+verify and publish both packages, and update both pins in the same PR. Pin-only
+commits can reuse the build from the preceding source commit. The default
+distribution includes iOS device libraries. Use `upm-simulator` for ARM64
+simulator builds.
 
 For local development, run from the repository root:
 

@@ -10,6 +10,13 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
+  check-unity-example-package:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v6
+    - name: Verify the example pins a package built from the current Unity sources
+      run: python3 unity/check_example_package.py
+
   check-aarch64:
     strategy:
       matrix:
@@ -172,6 +179,7 @@ jobs:
     runs-on: ubuntu-slim
     permissions: {}
     needs:
+      - check-unity-example-package
       - check-aarch64
       - check-x86_64
       - check-wasm
