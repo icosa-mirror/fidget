@@ -9,18 +9,55 @@ namespace Icosa.Fidget
     [Serializable]
     public struct MeshSettings
     {
+        public const int MaxDepth = 11;
+        public const int DefaultCellBudget = 1000000;
         public Bounds Bounds;
-        [Range(1, 8)] public int Depth;
+        [Range(1, MaxDepth)] public int Depth;
         public MeshNormals Normals;
-        public MeshSettings(Bounds bounds, int depth = 6, MeshNormals normals = MeshNormals.None)
-        { Bounds = bounds; Depth = depth; Normals = normals; }
+        [Min(0)] public float FeatureSpacing;
+        [Min(0)] public int CellBudget;
+        public bool AdaptivePlanes;
+        [Min(0)] public float SurfaceError;
+        public MeshSettings(Bounds bounds, int depth, MeshNormals normals)
+            : this(bounds, depth, normals, 0, 0, false) { }
+        public MeshSettings(Bounds bounds, int depth = 6, MeshNormals normals = MeshNormals.None,
+            float featureSpacing = 0, int cellBudget = 0, bool adaptivePlanes = false)
+        { Bounds = bounds; Depth = depth; Normals = normals; FeatureSpacing = featureSpacing; CellBudget = cellBudget; AdaptivePlanes = adaptivePlanes; SurfaceError = 0; }
+
+        /// <summary>Depth of the finest sampling cells, capped at MaxDepth.</summary>
+        public int SamplingDepth
+        {
+            get
+            {
+                ShapeBuilder.Finite(FeatureSpacing, nameof(FeatureSpacing));
+                if (FeatureSpacing < 0) throw new ArgumentOutOfRangeException(nameof(FeatureSpacing));
+                if (FeatureSpacing == 0) { ValidateDepth(Depth); return Depth; }
+                int depth = 1;
+                while (depth < MaxDepth && LongestCellEdge(depth) > FeatureSpacing) ++depth;
+                return depth;
+            }
+        }
+        public float LongestCellEdge(int depth)
+        {
+            ValidateDepth(depth);
+            Vector3 size = Bounds.size;
+            return Mathf.Max(size.x, Mathf.Max(size.y, size.z)) / (1 << depth);
+        }
+        internal int BudgetFor(int depth)
+        {
+            if (CellBudget < 0) throw new ArgumentOutOfRangeException(nameof(CellBudget));
+            ShapeBuilder.Finite(SurfaceError, nameof(SurfaceError));
+            if (SurfaceError < 0) throw new ArgumentOutOfRangeException(nameof(SurfaceError));
+            return CellBudget == 0 && (depth > 8 || FeatureSpacing > 0 || AdaptivePlanes || SurfaceError > 0) ? DefaultCellBudget : CellBudget;
+        }
         internal static void ValidateDepth(int depth)
         {
-            if (depth < 1 || depth > 8) throw new ArgumentOutOfRangeException(nameof(depth), "Depth must be between 1 and 8.");
+            if (depth < 1 || depth > MaxDepth) throw new ArgumentOutOfRangeException(nameof(depth), $"Depth must be between 1 and {MaxDepth}.");
         }
         internal void Validate()
         {
             ValidateDepth(Depth);
+            BudgetFor(SamplingDepth);
             if (Normals != MeshNormals.None && Normals != MeshNormals.Smooth && Normals != MeshNormals.Surface) throw new ArgumentOutOfRangeException(nameof(Normals));
             for (int i = 0; i < 3; ++i)
             {

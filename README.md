@@ -56,6 +56,50 @@ owns the native resources and Unity mesh. `Detail` defaults to 6; `Bounds` and
 `[field: SerializeField]` to a property to expose its backing field in the Inspector,
 as shown in the example components.
 
+`Detail` ranges from 1 to 11. Each additional level halves the finest
+cell edge on each axis. To select depth from the mesh bounds, set
+`FeatureSpacing` to the desired longest cell edge in shape-local units.
+For example, spacing 0.004 selects depth 9 for a two-unit cube and depth 11
+for an eight-unit cube. Zero selects the explicit Detail setting. Small features
+can still fall between samples. At the depth ceiling the actual spacing may be
+larger than requested. Read `Stream.AppliedCellSpacing` and `Stream.AppliedDepth`
+after a successful update.
+
+`CellBudget` limits visited octree cells per request. A value of zero uses
+one million cells for depths above 8, spacing-based requests, or either adaptive mode. Existing
+explicit depths through 8 run without a budget by default. If a request
+exhausts its budget, the previous complete mesh stays visible.
+`TryApply()` returns false, `IsPending` becomes false, and
+`CellBudgetExceeded` and `LastVisitedCells` report the outcome. Raise the
+budget or select coarser sampling to retry. The budget counts cells, so time
+and memory also depend on the expression and the surface inside the bounds.
+
+Enable **Adaptive Planes** to finish eligible flat patches early. It recognizes
+single-axis crossings, including flat regions of a rounded box. Unsupported
+expressions continue to the requested depth.
+
+**Surface Error** is an experimental, shape-local tolerance for accepting gently
+curved patches early. A positive value enables both flat and curved candidates.
+Zero uses the existing sampling settings. **Feature Spacing** still sets the
+finest search resolution. A surface missed at that resolution cannot be
+recovered by lowering Surface Error. The tolerance applies to early patches, and
+the whole mesh can have greater error at the finest cells and their transitions.
+
+Open `Scenes/Sampling/RoundedBlockComparison` in the examples and enter Play.
+Try Feature Spacing 0.008 and Surface Error 0.008, then compare with Surface
+Error zero. The left model samples at fixed depth. The right uses adaptive
+sampling. Both receive the same bore diameter, bridge thickness and grid offset.
+The feature-spacing slider reaches depth 9 at 0.004, depth 10 at 0.002 and
+depth 11 at 0.001. Each side has a two-million-cell budget. If a build reaches
+that limit, its readout reports the requested depth and the last complete mesh stays visible.
+`MeshStream.LastCurvedLeaves` counts accepted curved cells, and
+`LastWorkerMilliseconds` includes native sampling, normals and buffer writes.
+The scene also shows **ms apply**, the main-thread time for the successful
+`TryApply()` call. Select **Fixed** or **Adaptive** to draw one mesh at the same
+position with its text hidden. Once the build finishes, compare steady-state
+GPU frame times in the device profiler with the same camera, render settings
+and scene controls. **Both** restores the side-by-side view and timings.
+
 New components default to updating when property values change. Enable `Continuous`
 to generate every available frame. Updates happen in `LateUpdate`; values are
 snapshotted before the worker runs. Disabling completes outstanding work and
@@ -165,7 +209,7 @@ freeing resources a job still uses. An overload accepts a per-request depth.
 alternatives, surface features, joins, repetition and deformations in the same
 expression-first API. The formulas from Mercury hg_sdf and Inigo Quilez are
 available through `ShapeBuilder` and `ShapeBuilder<T>`; package 0.7.0 removes the
-separate public `HgSdf` and `IqSdf` APIs. Native ABI remains 6.
+separate public `HgSdf` and `IqSdf` APIs.
 
 ```csharp
 var box = shape.RoundedBox(new Expression3(0.6f, 0.8f, 0.4f), radius);
@@ -224,7 +268,7 @@ Conventions and differences from the Rust structs:
   field values across cell boundaries to avoid discontinuities and use explicit
   meshing bounds to select a finite region.
 
-The current package requires **ABI 6** native libraries. Rebuild/package matching native
+The current package requires **ABI 9** native libraries. Rebuild/package matching native
 libraries before using updated C# sources with an older published package.
 The **Shape Library** sample scene uses four small `FidgetMesh<T>` components to show
 extrusion, blending, lofting, revolution,

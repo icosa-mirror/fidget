@@ -65,6 +65,64 @@ namespace Icosa.Fidget.Editor
             return "PASS: builder matrix transform, worker meshing, bounds, surface normals, and invalid-transform rejection";
         }
 
+        /// <summary>Exercise high-detail sampling and budget recovery in a dedicated project.</summary>
+        public static void RunSampling()
+        {
+            var builder = new ShapeBuilder();
+            var radius = builder.Parameter("radius", 0.012f);
+            using (var shape = builder.Compile(builder.Sphere(radius)))
+            using (var stream = new MeshStream(shape, new MeshSettings(
+                new Bounds(Vector3.zero, Vector3.one * 8), featureSpacing: 0.004f, cellBudget: 12000)))
+            {
+                var values = shape.CreateParameters();
+                bool UpdateMesh()
+                {
+                    Check(stream.TrySchedule(values), "Sampling request rejected");
+                    var deadline = DateTime.UtcNow.AddSeconds(30);
+                    while (stream.IsPending)
+                    {
+                        if (stream.TryApply()) return true;
+                        if (DateTime.UtcNow > deadline) throw new TimeoutException("Sampling worker timed out");
+                        Thread.Sleep(1);
+                    }
+                    return false;
+                }
+                Check(UpdateMesh() && stream.AppliedDepth == 11 && stream.VertexCount > 0, "Failed depth-11 sampling");
+                var bounds = stream.Mesh.bounds;
+                int count = stream.VertexCount;
+                values.Set(radius, 0.7f);
+                Check(!UpdateMesh() && stream.CellBudgetExceeded && stream.LastVisitedCells == 12000, "Expected cell budget exhaustion");
+                Check(stream.Mesh.bounds == bounds && stream.Mesh.vertexCount == count, "Partial build replaced the previous mesh");
+                values.Set(radius, 0.016f);
+                Check(UpdateMesh() && !stream.CellBudgetExceeded && stream.Mesh.bounds.size.x > bounds.size.x, "Failed to recover after budget exhaustion");
+            }
+
+            var box = builder.Box(0.61f, 0.52f, 0.19f);
+            var bore = (builder.X.Square() + builder.Y.Square()).Sqrt() - 0.12f;
+            using (var shape = builder.Compile(box.Max(-bore)))
+            {
+                uint visits = 0;
+                foreach (bool adaptive in new[] { false, true })
+                {
+                    using (var stream = new MeshStream(shape, new MeshSettings(
+                        new Bounds(Vector3.zero, Vector3.one * 2), 6, MeshNormals.Surface, cellBudget: 200000, adaptivePlanes: adaptive)))
+                    {
+                        Check(stream.TrySchedule(shape.CreateParameters()), "Drilled block request rejected");
+                        var deadline = DateTime.UtcNow.AddSeconds(30);
+                        while (!stream.TryApply())
+                        {
+                            if (!stream.IsPending || DateTime.UtcNow > deadline) throw new InvalidOperationException("Drilled block failed to apply");
+                            Thread.Sleep(1);
+                        }
+                        Check(stream.VertexCount > 0 && stream.Mesh.normals.Length == stream.VertexCount, "Missing drilled block surface");
+                        if (adaptive) Check(stream.LastVisitedCells < visits, "Expected fewer visited cells on the planar faces");
+                        visits = stream.LastVisitedCells;
+                    }
+                }
+            }
+            Debug.Log("[FidgetSamplingCheck] PASS depth 11, spacing, budget recovery, adaptive faces and surface normals");
+        }
+
         private static void Apply(SphereMeshStream stream, float radius, int depth)
         {
             Check(stream.Schedule(radius, depth), "Could not schedule mesh");
