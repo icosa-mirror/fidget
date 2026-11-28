@@ -40,16 +40,12 @@ namespace Icosa.Fidget
             var values = Shape.CreateParameters();
             values.ReadBindings = () =>
             {
-                bool changed = false;
                 for (int i = 0; i < _slots.Length; ++i)
                 {
                     float value = _readers[i](model);
                     ShapeBuilder.Finite(value, nameof(model));
-                    int index = _slots[i].Index;
-                    changed |= values.Values[index] != value;
-                    values.Values[index] = value;
+                    values.Values[_slots[i].Index] = value;
                 }
-                return changed;
             };
             values.CaptureBindings();
             return values;

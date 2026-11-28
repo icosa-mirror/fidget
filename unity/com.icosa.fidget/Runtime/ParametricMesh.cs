@@ -55,7 +55,6 @@ namespace Icosa.Fidget
                 instance.AdaptivePlanes = AdaptivePlanes;
                 instance.SurfaceError = SurfaceError;
                 instance.Normals = Normals;
-                instance.Continuous = Continuous;
                 instance.ShareDefinition((T)this);
                 instance.GetComponent<MeshRenderer>().sharedMaterials = GetComponent<MeshRenderer>().sharedMaterials;
                 go.SetActive(true);
@@ -68,8 +67,6 @@ namespace Icosa.Fidget
                 throw;
             }
         }
-
-        protected virtual void Reset() => Continuous = false;
 
         protected override void OnEnable()
         {

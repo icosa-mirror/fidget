@@ -100,10 +100,10 @@ position with its text hidden. Once the build finishes, compare steady-state
 GPU frame times in the device profiler with the same camera, render settings
 and scene controls. **Both** restores the side-by-side view and timings.
 
-New components default to updating when property values change. Enable `Continuous`
-to generate every available frame. Updates happen in `LateUpdate`; values are
-snapshotted before the worker runs. Disabling completes outstanding work and
-releases mesh buffers; reenabling reuses the prepared expression. Destruction
+Components update in `LateUpdate` when bound properties, explicit parameter
+values, or sampling settings change. Call `RequestUpdate()` to rebuild with the
+same inputs. Values are snapshotted before the worker runs. Disabling completes
+outstanding work and releases mesh buffers. Reenabling reuses the prepared expression. Destruction
 releases it. Call `Rebuild()` after changing expression structure, bounds, or normal
 mode; ordinary property changes require no rebuild.
 
