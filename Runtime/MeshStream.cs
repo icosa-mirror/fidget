@@ -16,6 +16,8 @@ namespace Icosa.Fidget
         private struct Result
         {
             public int Status;
+            public long WorkerTicks;
+            public Native.SamplingStats Work;
             public Native.Counts Counts;
             public Native.Bounds Bounds;
         }
@@ -33,12 +35,16 @@ namespace Icosa.Fidget
 
             public void Execute()
             {
+                long start = System.Diagnostics.Stopwatch.GetTimestamp();
                 var result = new Result { Status = -1 };
                 var handle = IntPtr.Zero;
                 try
                 {
                     var bounds = new Native.Bounds { Min = Settings.Bounds.min, Max = Settings.Bounds.max };
-                    result.Status = Native.fidget_mesher_generate(Mesher, Parameters.GetUnsafeReadOnlyPtr(), (uint)Parameters.Length, in bounds, (uint)Settings.Depth, out handle);
+                    var sampling = new Native.Sampling { Depth = (uint)Settings.Depth, MaxCells = (uint)Settings.CellBudget,
+                        Planar = Settings.AdaptivePlanes ? 1u : 0u, SurfaceError = Settings.SurfaceError };
+                    result.Status = Native.fidget_mesher_sample_v2(Mesher, Parameters.GetUnsafeReadOnlyPtr(),
+                        (uint)Parameters.Length, in bounds, sampling, out result.Work, out handle);
                     if (result.Status != 0) return;
                     if (Settings.Normals == MeshNormals.Surface)
                     {
@@ -85,6 +91,7 @@ namespace Icosa.Fidget
                 finally
                 {
                     Native.fidget_mesh_free(handle);
+                    result.WorkerTicks = System.Diagnostics.Stopwatch.GetTimestamp() - start;
                     Results[0] = result;
                 }
             }
@@ -105,6 +112,22 @@ namespace Icosa.Fidget
         public bool IsPending => _pending;
         public int VertexCount { get; private set; }
         public int TriangleCount { get; private set; }
+        public bool CellBudgetExceeded { get; private set; }
+        public uint LastVisitedCells { get; private set; }
+        public uint LastCurvedLeaves { get; private set; }
+        /// <summary>Time spent inside the completed worker job, including normals and buffer writes.</summary>
+        public double LastWorkerMilliseconds { get; private set; }
+        public int AppliedDepth { get; private set; }
+        public float AppliedCellSpacing => AppliedDepth == 0 ? 0 : Settings.LongestCellEdge(AppliedDepth);
+        private int _pendingDepth;
+
+        // Only read the snapshot after its job completed.
+        internal bool HasScheduledValues(ParameterValues values)
+        {
+            for (int i = 0; i < _parameters.Length; ++i)
+                if (_parameters[i] != values.Values[i]) return false;
+            return true;
+        }
 
         public MeshStream(CompiledShape shape, MeshSettings settings)
         {
@@ -128,19 +151,19 @@ namespace Icosa.Fidget
         }
 
         /// <summary>Returns false while busy. Call again with the latest parameters; no queue is kept.</summary>
-        public bool TrySchedule(ParameterValues parameters) => TrySchedule(parameters, Settings.Depth);
+        public bool TrySchedule(ParameterValues parameters) => TrySchedule(parameters, Settings.SamplingDepth);
 
         /// <summary>Overrides depth for this request without rebuilding the shape or replacing the Mesh.</summary>
         public bool TrySchedule(ParameterValues parameters, int depth)
-            => TrySchedule(parameters, depth, true);
+            => TrySchedule(parameters, depth, Settings, true);
 
-        internal bool TrySchedule(ParameterValues parameters, int depth, bool captureBindings)
+        internal bool TrySchedule(ParameterValues parameters, int depth, MeshSettings settings, bool captureBindings)
         {
             ThrowIfDisposed();
             if (_pending) return false;
             MeshSettings.ValidateDepth(depth);
-            var settings = Settings;
             settings.Depth = depth;
+            settings.CellBudget = settings.BudgetFor(depth);
             if (parameters == null || parameters.Shape != _shape) throw new ArgumentException("Values must come from the stream's compiled shape.", nameof(parameters));
             if (captureBindings) parameters.CaptureBindings();
             // A dedicated snapshot prevents writes on the main thread from racing the worker.
@@ -155,6 +178,7 @@ namespace Icosa.Fidget
                     Output = _output, Layout = _layout, Results = _results
                 }.Schedule();
                 _pending = true;
+                _pendingDepth = depth;
                 JobHandle.ScheduleBatchedJobs();
                 return true;
             }
@@ -173,9 +197,14 @@ namespace Icosa.Fidget
             _job.Complete();
             _pending = false;
             var result = _results[0];
+            LastVisitedCells = result.Work.Visited;
+            LastCurvedLeaves = result.Work.CurvedLeaves;
+            LastWorkerMilliseconds = result.WorkerTicks * (1000.0 / System.Diagnostics.Stopwatch.Frequency);
+            CellBudgetExceeded = result.Status == Native.CellBudgetExceeded;
             if (result.Status != 0)
             {
                 _output.Dispose();
+                if (CellBudgetExceeded) return false;
                 throw new InvalidOperationException($"Fidget mesh update failed with status {result.Status}.");
             }
             // Rust owns the topology and guarantees that its indices address its vertices.
@@ -185,6 +214,7 @@ namespace Icosa.Fidget
             Mesh.bounds = ToUnityBounds(result.Bounds);
             VertexCount = (int)result.Counts.Vertices;
             TriangleCount = (int)result.Counts.Indices / 3;
+            AppliedDepth = _pendingDepth;
             return true;
         }
 

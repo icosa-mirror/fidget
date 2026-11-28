@@ -10,11 +10,12 @@ namespace FidgetExamples.Editor
 {
     public static class ExampleScenes
     {
-        public static string[] Names() => ExampleCatalog.Entries.Select(e => e.Scene).Distinct().OrderBy(s => s).ToArray();
+        public static string[] Names() => ExampleCatalog.Entries.Select(e => e.Scene).Append(SamplingComparisonScene.Name).Distinct().OrderBy(s => s).ToArray();
         [MenuItem("Fidget/Create Feature Examples")]
         public static void CreateAll() { foreach (var name in Names()) Debug.Log(Create(name)); }
         public static string Create(string name)
         {
+            if (name == SamplingComparisonScene.Name) return SamplingComparisonScene.Create();
             var entries = ExampleCatalog.Entries.Where(e => e.Scene == name).ToArray();
             if (entries.Length == 0) throw new ArgumentException("Unknown example scene " + name);
             string path = ExampleSceneLayout.RootFolder() + "/Scenes/" + name + ".unity";

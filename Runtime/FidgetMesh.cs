@@ -10,7 +10,15 @@ namespace Icosa.Fidget
     {
         [Tooltip("When disabled, typed property changes trigger updates automatically. For explicit parameter values, call RequestUpdate.")]
         public bool Continuous = true;
-        [Range(1, 8)] public int Detail = 6;
+        [Range(1, MeshSettings.MaxDepth)] public int Detail = 6;
+        [Tooltip("Longest finest-cell edge in local units. Zero uses Detail.")]
+        [Min(0)] public float FeatureSpacing;
+        [Tooltip("Maximum cells per build. Zero uses the default budget for high detail and feature spacing.")]
+        [Min(0)] public int CellBudget;
+        [Tooltip("Finish eligible flat regions early. Curves and unresolved cells continue to the requested detail.")]
+        public bool AdaptivePlanes;
+        [Tooltip("Experimental local-space error target for early curved patches. Zero disables curved sampling.")]
+        [Min(0)] public float SurfaceError;
         public ParameterValues Parameters { get; private set; }
         public MeshStream Stream { get; private set; }
         private CompiledShape _shape;
@@ -19,6 +27,9 @@ namespace Icosa.Fidget
         private Mesh _previousMesh;
         private bool _requested;
         private int _scheduledDepth;
+        private int _scheduledBudget;
+        private bool _scheduledAdaptivePlanes;
+        private float _scheduledSurfaceError;
 
         /// <summary>Transfers ownership of shape to this component. Use MeshStream directly to share a shape between objects.</summary>
         public void Initialize(CompiledShape shape, MeshSettings settings)
@@ -31,6 +42,10 @@ namespace Icosa.Fidget
             _shape = shape;
             _settings = settings;
             Detail = settings.Depth;
+            FeatureSpacing = settings.FeatureSpacing;
+            CellBudget = settings.CellBudget;
+            AdaptivePlanes = settings.AdaptivePlanes;
+            SurfaceError = settings.SurfaceError;
             Parameters = shape.CreateParameters();
             _requested = true;
             if (isActiveAndEnabled) StartStream();
@@ -65,11 +80,25 @@ namespace Icosa.Fidget
         {
             if (Stream == null) return;
             if (Parameters.CaptureBindings()) _requested = true;
-            if (Detail != _scheduledDepth) _requested = true;
+            _settings.Depth = Detail;
+            _settings.FeatureSpacing = FeatureSpacing;
+            _settings.CellBudget = CellBudget;
+            _settings.AdaptivePlanes = AdaptivePlanes;
+            _settings.SurfaceError = SurfaceError;
+            int depth = _settings.SamplingDepth;
+            int budget = _settings.BudgetFor(depth);
+            if (depth != _scheduledDepth || budget != _scheduledBudget || AdaptivePlanes != _scheduledAdaptivePlanes || SurfaceError != _scheduledSurfaceError) _requested = true;
+            bool wasPending = Stream.IsPending;
             Stream.TryApply();
-            if ((Continuous || _requested) && Stream.TrySchedule(Parameters, Detail, false))
+            if (wasPending && !Stream.IsPending && Stream.CellBudgetExceeded)
+                Debug.LogWarning($"Fidget stopped after {Stream.LastVisitedCells} cells on {name}. Increase Cell Budget or reduce the requested detail.", this);
+            if (!_requested && (!Continuous || (Stream.CellBudgetExceeded && !Stream.IsPending && Stream.HasScheduledValues(Parameters)))) return;
+            if (Stream.TrySchedule(Parameters, depth, _settings, false))
             {
-                _scheduledDepth = Detail;
+                _scheduledDepth = depth;
+                _scheduledBudget = budget;
+                _scheduledAdaptivePlanes = AdaptivePlanes;
+                _scheduledSurfaceError = SurfaceError;
                 _requested = false;
             }
         }
